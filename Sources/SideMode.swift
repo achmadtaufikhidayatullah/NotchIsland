@@ -162,7 +162,12 @@ struct SideTabView: View {
         return CGRect(x: edge == .right ? frame.maxX - w : frame.minX, y: frame.midY - h / 2, width: w, height: h)
     }
 
+    // Posisi tengah atas → tab tidak dirender sama sekali (animasinya ikut berhenti).
     var body: some View {
+        if model.placement != .top { tabBody } else { Color.clear }
+    }
+
+    private var tabBody: some View {
         let mini = Self.isMinimized(model)
         let full = Self.size(for: model)
         // Satu bentuk yang sama: notch hitam kecil di tepi saat mini, membesar menjadi tab penuh saat hover.
@@ -266,6 +271,10 @@ struct SideCardView: View {
     }
 
     var body: some View {
+        if model.placement != .top { cardBody } else { Color.clear }
+    }
+
+    private var cardBody: some View {
         ZStack(alignment: edge == .right ? .topTrailing : .topLeading) {
             if model.sideHover {
                 detail

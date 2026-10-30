@@ -431,6 +431,13 @@ final class NotchModel: ObservableObject {
         showNextLimitAlert()
     }
 
+    /// Setelah Mac bangun: segarkan limit Claude & kuota Antigravity sekarang juga, tanpa menunggu jadwalnya.
+    func refreshAfterWake() {
+        lastUsageAt = .distantPast
+        lastAgQuotaAt = .distantPast
+        refresh()
+    }
+
     func toggleWidget(_ kind: WidgetKind) {
         var set = Set(enabledWidgets)
         if set.contains(kind) { set.remove(kind) } else { set.insert(kind) }
@@ -852,7 +859,12 @@ struct NotchView: View {
         return (compact == .none && !model.showIdleWithoutNotch) || model.fullscreenActive
     }
 
+    // Mode sisi aktif → notch tidak dirender sama sekali (animasinya ikut berhenti).
     var body: some View {
+        if model.placement == .top { islandBody } else { Color.clear }
+    }
+
+    private var islandBody: some View {
         let shape = NotchShape(topRadius: topR,
                                bottomRadius: model.expanded ? 32 : (compact == .none ? 10 : 14))
         return VStack(spacing: 0) {
@@ -1334,6 +1346,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         // Re-deteksi saat layar berubah (ganti resolusi, colok/lepas monitor, clamshell).
+        // Bangun dari sleep: layar bisa berubah (clamshell, monitor dicabut) dan data limit sudah usang.
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification,
+                                                          object: nil, queue: .main) { [weak self] _ in
+            self?.relayout()
+            self?.model.refreshAfterWake()
+        }
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                                object: nil, queue: .main) { [weak self] _ in
             self?.relayout()
@@ -1399,8 +1417,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if !panel.isVisible { panel.orderFrontRegardless() }
             return
         }
-        panel.orderOut(nil)
-        model.expanded = false
+        if panel.isVisible { panel.orderOut(nil) }
+        // Hanya tulis bila berubah: setiap penulisan @Published memicu layoutSide lagi (lewat objectWillChange).
+        if model.expanded { model.expanded = false }
 
         // Arah tab & kartu mengikuti tepi yang dipilih.
         if let host = tab.contentView as? FirstMouseHostingView<SideTabView>, host.rootView.edge != sideEdge {
@@ -1756,7 +1775,12 @@ if CommandLine.arguments.contains("--print-claude") {
     } else {
         print("antigravity kuota: tidak tersedia (Antigravity \(AntigravityQuota.isRunning() ? "terbuka" : "tertutup"))")
     }
+    var start = Date()
     let u = monitor.computeUsage(contextTranscript: sessions.first?.transcript_path)
+    let first = Date().timeIntervalSince(start)
+    start = Date()
+    _ = monitor.computeUsage(contextTranscript: sessions.first?.transcript_path)
+    print(String(format: "baca transcript: pertama %.2f dtk · berikutnya (bertahap) %.3f dtk", first, Date().timeIntervalSince(start)))
     print("5 jam ≈ \(ClaudeStyle.tokens(u.blockTokens)) · reset \(u.resetAt.map { "\($0)" } ?? "-") · ctx \(u.contextTokens.map(ClaudeStyle.tokens) ?? "-")")
     exit(0)
 }

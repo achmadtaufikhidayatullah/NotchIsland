@@ -309,7 +309,7 @@ struct AntigravityMark: View {
     var tint: Color? = nil
 
     var body: some View {
-        TimelineView(.animation(paused: !active)) { ctx in
+        TimelineView(.animation(minimumInterval: Motion.frame, paused: !active)) { ctx in
             let pulse = active ? 0.85 + 0.15 * sin(ctx.date.timeIntervalSinceReferenceDate * 4) : 1
             Image(systemName: "a.circle.fill")
                 .font(.system(size: size, weight: .semibold))

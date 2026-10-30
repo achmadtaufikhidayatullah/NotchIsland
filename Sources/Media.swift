@@ -280,7 +280,7 @@ struct EqualizerBars: View {
     var color: Color = .white
 
     var body: some View {
-        TimelineView(.animation(paused: !playing)) { ctx in
+        TimelineView(.animation(minimumInterval: Motion.frame, paused: !playing)) { ctx in
             let t = ctx.date.timeIntervalSinceReferenceDate
             HStack(alignment: .center, spacing: 2) {
                 ForEach(0..<4, id: \.self) { i in

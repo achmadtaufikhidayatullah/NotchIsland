@@ -98,7 +98,15 @@ final class ClaudeMonitor {
     // --- Estimasi usage dari transcript lokal ---
 
     private struct Entry { let time: Date; let tokens: Int }
-    private struct ParsedFile { let stamp: String; let entries: [Entry]; let lastContext: Int? }
+    /// Hasil baca per file transcript. Dibaca bertahap: `offset` menandai byte terakhir yang sudah
+    /// diproses, jadi tiap 15 detik hanya baris baru yang dibaca (transcript sesi panjang bisa puluhan MB).
+    private struct ParsedFile {
+        var stamp = ""
+        var offset: UInt64 = 0
+        var entries: [Entry] = []
+        var seen = Set<String>()
+        var lastContext: Int?
+    }
     private var cache: [String: ParsedFile] = [:]
     private let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -107,32 +115,41 @@ final class ClaudeMonitor {
     }()
 
     /// Format transcript bersifat internal Claude Code, jadi semua parsing di sini toleran terhadap field yang hilang.
-    private func parse(_ url: URL, stamp: String) -> ParsedFile {
-        if let cached = cache[url.path], cached.stamp == stamp { return cached }
-        var entries: [Entry] = []
-        var seen = Set<String>()
-        var lastContext: Int?
-        if let text = try? String(contentsOf: url, encoding: .utf8) {
-            for line in text.split(separator: "\n") where line.contains("\"usage\"") {
-                guard let obj = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+    private func parse(_ url: URL, stamp: String, size: UInt64) -> ParsedFile {
+        var file = cache[url.path] ?? ParsedFile()
+        if file.stamp == stamp { return file }
+        if size < file.offset { file = ParsedFile() }   // file diganti / dipotong → baca ulang dari awal
+
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return file }
+        defer { try? handle.close() }
+        try? handle.seek(toOffset: file.offset)
+        let data = (try? handle.readToEnd()) ?? Data()
+
+        // Hanya baris yang sudah lengkap; baris yang masih ditulis dibaca pada putaran berikutnya.
+        if let lastNewline = data.lastIndex(of: 0x0A) {
+            let chunk = data[data.startIndex...lastNewline]
+            let marker = Data("\"usage\"".utf8)
+            for line in chunk.split(separator: 0x0A) where line.range(of: marker) != nil {
+                guard let obj = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
                       obj["type"] as? String == "assistant",
                       let msg = obj["message"] as? [String: Any],
                       let usage = msg["usage"] as? [String: Any] else { continue }
                 // Satu respons bisa tertulis di beberapa baris dengan usage yang sama.
                 let key = "\(msg["id"] ?? "")|\(obj["requestId"] ?? "")"
-                guard seen.insert(key).inserted else { continue }
+                guard file.seen.insert(key).inserted else { continue }
                 let input = usage["input_tokens"] as? Int ?? 0
                 let cacheWrite = usage["cache_creation_input_tokens"] as? Int ?? 0
                 let cacheRead = usage["cache_read_input_tokens"] as? Int ?? 0
                 let output = usage["output_tokens"] as? Int ?? 0
-                if obj["isSidechain"] as? Bool != true { lastContext = input + cacheWrite + cacheRead }
+                if obj["isSidechain"] as? Bool != true { file.lastContext = input + cacheWrite + cacheRead }
                 guard let ts = obj["timestamp"] as? String, let time = iso.date(from: ts) else { continue }
-                entries.append(Entry(time: time, tokens: input + cacheWrite + output))
+                file.entries.append(Entry(time: time, tokens: input + cacheWrite + output))
             }
+            file.offset += UInt64(chunk.count)
         }
-        let parsed = ParsedFile(stamp: stamp, entries: entries, lastContext: lastContext)
-        cache[url.path] = parsed
-        return parsed
+        file.stamp = stamp
+        cache[url.path] = file
+        return file
     }
 
     func computeUsage(contextTranscript: String?) -> ClaudeUsage {
@@ -147,7 +164,8 @@ final class ClaudeMonitor {
             for case let url as URL in walker where url.pathExtension == "jsonl" {
                 guard let v = try? url.resourceValues(forKeys: Set(keys)),
                       let mtime = v.contentModificationDate, mtime > cutoff else { continue }
-                let parsed = parse(url, stamp: "\(mtime.timeIntervalSince1970)-\(v.fileSize ?? 0)")
+                let size = UInt64(v.fileSize ?? 0)
+                let parsed = parse(url, stamp: "\(mtime.timeIntervalSince1970)-\(size)", size: size)
                 livePaths.insert(url.path)
                 entries += parsed.entries.filter { $0.time > cutoff }
                 if url.path == contextTranscript { context = parsed.lastContext }
@@ -203,7 +221,7 @@ struct ClaudeMark: View {
     var color: Color = ClaudeStyle.accent
 
     var body: some View {
-        TimelineView(.animation(paused: !spinning)) { ctx in
+        TimelineView(.animation(minimumInterval: Motion.frame, paused: !spinning)) { ctx in
             let angle = spinning ? ctx.date.timeIntervalSinceReferenceDate * 60 : 0
             ZStack {
                 ForEach(0..<10, id: \.self) { i in
@@ -253,7 +271,7 @@ struct ClaudeProgressBar: View {
                         .frame(width: max(5, w * fraction))
                         .animation(.smooth, value: fraction)
                 } else if animating {
-                    TimelineView(.animation) { ctx in
+                    TimelineView(.animation(minimumInterval: Motion.frame)) { ctx in
                         let t = ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
                         Capsule()
                             .fill(LinearGradient(colors: [color.opacity(0), color, color.opacity(0)],

@@ -266,8 +266,8 @@ NotchIsland **tidak mengirim data ke server mana pun** dan tidak menyimpan promp
 ./release.sh 1.0.0
 ```
 
-- Build **universal** (Apple Silicon + Intel), lalu membuat `dist/NotchIsland-1.0.0.dmg` dan salinan bernama tetap `dist/NotchIsland.dmg`.
-- Buat rilis baru di GitHub dengan tag `v1.0.0`, lalu unggah **`dist/NotchIsland.dmg`**. Link download di README dan landing page selalu mengarah ke rilis terbaru lewat nama file ini.
+- Build **universal** (Apple Silicon + Intel), lalu membuat **`dist/NotchIsland.dmg`** (plus arsip berversi di `dist/arsip/`).
+- Buat rilis baru di GitHub dengan tag `v1.0.0`, lalu unggah **`dist/NotchIsland.dmg`**, persis dengan nama itu. Link download di README dan landing page memakai `releases/latest/download/NotchIsland.dmg`, jadi file dengan nama lain akan menghasilkan 404.
 - Untuk pengembangan sehari-hari, `./build.sh` cukup membangun untuk arsitektur Mac-mu saja (lebih cepat). Build universal: `ARCHS="arm64 x86_64" ./build.sh`.
 - **Landing page** ada di `docs/index.html` (statis, tanpa build). Aktifkan sekali di GitHub: **Settings › Pages › Build and deployment › Deploy from a branch** → `main` / `/docs`. Situs akan tampil di `https://achmadtaufikhidayatullah.github.io/NotchIsland/`. Tambahkan `?state=0`–`6` di URL untuk membekukan demo notch (berguna untuk screenshot).
 - App ditandatangani ad-hoc dan belum dinotarisasi. Supaya bisa dibuka dengan dobel klik tanpa peringatan Gatekeeper, diperlukan sertifikat Developer ID dari Apple Developer Program.

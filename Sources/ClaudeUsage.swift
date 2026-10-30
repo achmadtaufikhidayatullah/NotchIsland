@@ -222,7 +222,7 @@ struct UsageRing: View {
                 .rotationEffect(.degrees(-90))
                 .animation(.smooth, value: percent)
             if busy || waiting {
-                TimelineView(.animation) { ctx in
+                TimelineView(.animation(minimumInterval: Motion.frame)) { ctx in
                     let t = ctx.date.timeIntervalSinceReferenceDate
                     if waiting {
                         Circle()

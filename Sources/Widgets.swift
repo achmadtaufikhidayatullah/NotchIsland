@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// Animasi berulang (logo berputar, arc kerja, shimmer, equalizer) dibatasi 30 fps:
+/// cukup mulus untuk elemen sekecil ini, dan jauh lebih hemat CPU daripada mengikuti
+/// refresh rate layar (hingga 120 Hz di ProMotion).
+enum Motion {
+    static let frame: TimeInterval = 1.0 / 30
+}
+
 /// Daftar widget yang bisa tampil di island. Urutan case = urutan tab.
 enum WidgetKind: String, CaseIterable, Identifiable {
     case claude, antigravity, media, clock, shortcuts
