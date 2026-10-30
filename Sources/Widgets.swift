@@ -9,7 +9,7 @@ enum Motion {
 
 /// Daftar widget yang bisa tampil di island. Urutan case = urutan tab.
 enum WidgetKind: String, CaseIterable, Identifiable {
-    case claude, antigravity, media, shelf, clock, shortcuts
+    case claude, antigravity, media, calendar, shelf, clock, shortcuts
 
     var id: String { rawValue }
 
@@ -18,6 +18,7 @@ enum WidgetKind: String, CaseIterable, Identifiable {
         case .claude: return "Claude"
         case .antigravity: return "Antigravity"
         case .media: return "Sedang Diputar"
+        case .calendar: return "Kalender"
         case .shelf: return "Shelf & AirDrop"
         case .clock: return "Jam & Kontrol"
         case .shortcuts: return "Folder"
@@ -29,6 +30,7 @@ enum WidgetKind: String, CaseIterable, Identifiable {
         case .claude: return "sparkle"
         case .antigravity: return "a.circle.fill"
         case .media: return "music.note"
+        case .calendar: return "calendar"
         case .shelf: return "tray.full.fill"
         case .clock: return "clock.fill"
         case .shortcuts: return "folder.fill"
@@ -40,14 +42,15 @@ enum WidgetKind: String, CaseIterable, Identifiable {
         switch self {
         case .claude: return 104
         case .antigravity: return 104
-        case .media: return 104
+        case .media: return 132
+        case .calendar: return 132
         case .shelf: return 112
         case .clock: return 100
         case .shortcuts: return 58
         }
     }
 
-    static let defaultEnabled: [WidgetKind] = [.claude, .antigravity, .media, .shelf]
+    static let defaultEnabled: [WidgetKind] = [.claude, .antigravity, .media, .calendar, .shelf]
     static let maxContentHeight = allCases.map(\.contentHeight).max() ?? 104
 }
 

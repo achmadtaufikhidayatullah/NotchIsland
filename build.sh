@@ -41,7 +41,7 @@ for arch in $ARCHS; do
   ar rcs "$OBJ/$arch/libzstd.a" $objs
 
   swiftc -O -swift-version 5 -target "$arch-apple-macos$MIN_MACOS" \
-    -framework AppKit -framework SwiftUI -framework IOKit -framework CoreAudio -framework AudioToolbox \
+    -framework AppKit -framework SwiftUI -framework IOKit -framework CoreAudio -framework AudioToolbox -framework EventKit \
     -import-objc-header zstd-bridge.h -Xcc -I"$ZSTD" -Xlinker "$OBJ/$arch/libzstd.a" \
     Sources/*.swift -o "$OBJ/$arch/NotchIsland"
   BINARIES+=("$OBJ/$arch/NotchIsland")
@@ -63,6 +63,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>$MIN_MACOS</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSUIElement</key><true/>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>NotchIsland menampilkan acara dari Kalender di Dynamic Island.</string>
+  <key>NSCalendarsUsageDescription</key><string>NotchIsland menampilkan acara dari Kalender di Dynamic Island.</string>
   <key>NSAppleEventsUsageDescription</key><string>NotchIsland membaca lagu yang sedang diputar di Music dan Spotify untuk ditampilkan di Dynamic Island.</string>
 </dict>
 </plist>

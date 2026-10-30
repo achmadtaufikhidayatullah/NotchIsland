@@ -238,10 +238,19 @@ final class NotchModel: ObservableObject {
     /// Tinggi pulau mengikuti widget yang sedang dipilih.
     var expandedSize: CGSize {
         let content = enabledWidgets.isEmpty ? 40 : selectedWidget.contentHeight
-        return CGSize(width: 500, height: geometry.notchSize.height + 24 + content)
+        return CGSize(width: expandedWidth(tabs: enabledWidgets.count), height: geometry.notchSize.height + 24 + content)
     }
+    /// Lebar island terbuka: sisi kiri (tab widget) dan kanan (jam + baterai) notch dibuat sama lebar
+    /// dan cukup untuk isinya, supaya tidak ada yang terdorong ke bawah notch kamera atau terpotong.
+    func expandedWidth(tabs: Int) -> CGFloat {
+        let tabsWidth: CGFloat = tabs > 1 ? CGFloat(tabs) * 24 + CGFloat(tabs - 1) * 4 : 120
+        let side = max(tabsWidth, 128) + 12           // + jarak napas dari tepi notch
+        let chrome: CGFloat = 2 * (6 + 14 + 14)       // padding baris atas + konten + telinga notch
+        return max(500, geometry.notchSize.width + side * 2 + chrome)
+    }
+
     var maxExpandedSize: CGSize {
-        CGSize(width: 500, height: geometry.notchSize.height + 24 + WidgetKind.maxContentHeight)
+        CGSize(width: expandedWidth(tabs: WidgetKind.allCases.count), height: geometry.notchSize.height + 24 + WidgetKind.maxContentHeight)
     }
     private var timer: Timer?
     private let media = MediaMonitor()
@@ -271,6 +280,15 @@ final class NotchModel: ObservableObject {
         let defaults = UserDefaults.standard
         var widgets = defaults.stringArray(forKey: "enabledWidgets")?.compactMap(WidgetKind.init(rawValue:))
             ?? WidgetKind.defaultEnabled
+        // Widget Kalender ikut aktif sekali untuk pengaturan yang sudah tersimpan.
+        if !defaults.bool(forKey: "addedCalendar") {
+            defaults.set(true, forKey: "addedCalendar")
+            if defaults.stringArray(forKey: "enabledWidgets") != nil, !widgets.contains(.calendar) {
+                let current = widgets
+                widgets = WidgetKind.allCases.filter { current.contains($0) || $0 == .calendar }
+                defaults.set(widgets.map(\.rawValue), forKey: "enabledWidgets")
+            }
+        }
         // Widget Shelf ikut aktif sekali untuk pengaturan yang sudah tersimpan.
         if !defaults.bool(forKey: "addedShelf") {
             defaults.set(true, forKey: "addedShelf")
@@ -935,7 +953,8 @@ struct NotchView: View {
         HStack {
             ArtworkView(image: model.nowPlaying?.artwork, size: 20, radius: 5)
             Spacer()
-            EqualizerBars(playing: model.nowPlaying?.isPlaying ?? false)
+            EqualizerBars(playing: model.nowPlaying?.isPlaying ?? false,
+                          color: ArtworkPalette.accent(for: model.nowPlaying?.artwork))
         }
         .padding(.horizontal, topR + 12)
         .frame(height: g.notchSize.height)
@@ -1187,6 +1206,8 @@ struct NotchView: View {
         case .media:
             MediaCard(nowPlaying: model.nowPlaying, deniedApp: model.mediaDenied, now: model.now,
                       onCommand: model.sendMedia)
+        case .calendar:
+            CalendarWidget(model: model)
         case .shelf:
             ShelfWidget(model: model)
         case .clock:
@@ -1207,6 +1228,7 @@ struct NotchView: View {
                     WidgetTabs(widgets: model.enabledWidgets, selected: model.selectedWidget) {
                         model.selectedWidget = $0
                     }
+                    .fixedSize()
                 } else {
                     HStack(spacing: 6) {
                         Image(systemName: "laptopcomputer")
@@ -1226,6 +1248,7 @@ struct NotchView: View {
                 Text(model.now, format: .dateTime.hour().minute())
                     .font(.system(size: 12, weight: .semibold))
                     .monospacedDigit()
+                    .lineLimit(1)
                     .foregroundStyle(Palette.secondary)
                     .padding(.trailing, 4)
                 if let b = model.battery {
@@ -1236,6 +1259,7 @@ struct NotchView: View {
                     BatteryGlyph(level: b.level, charging: b.charging, tint: batteryTint)
                 }
             }
+            .fixedSize()   // jam & baterai tidak pernah terpotong ke baris baru
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 6)

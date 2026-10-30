@@ -42,6 +42,10 @@ struct NowPlaying: Equatable {
     var fetchedAt: Date
     var artworkURL: String?
     var artwork: NSImage?
+    /// Bundle app pemutar (dari Now Playing sistem); untuk ikon & membuka app-nya.
+    var bundleID: String? = nil
+
+    var sourceBundleID: String? { bundleID ?? app?.bundleID }
 
     /// Posisi diperkirakan antar-polling supaya progress bar bergerak halus.
     func position(at now: Date) -> Double {
@@ -228,7 +232,8 @@ final class SystemNowPlaying {
                             position: num("elapsed"),
                             fetchedAt: stamp,
                             artworkURL: nil,
-                            artwork: artwork)
+                            artwork: artwork,
+                            bundleID: bundleID)
     }
 
     /// Perintah lewat MediaRemote — berlaku untuk pemutar apa pun yang sedang aktif.
@@ -246,6 +251,105 @@ final class SystemNowPlaying {
         p.standardOutput = FileHandle.nullDevice
         p.standardError = FileHandle.nullDevice
         try? p.run()
+    }
+}
+
+// MARK: - Warna & ikon
+
+/// Warna aksen dari artwork (seperti widget musik di iOS): warna paling "hidup" di sampul,
+/// dicerahkan secukupnya supaya terbaca di latar hitam.
+enum ArtworkPalette {
+    private static var cache: [ObjectIdentifier: NSColor] = [:]
+    static let fallback = Color(red: 0.98, green: 0.62, blue: 0.35)
+
+    static func accent(for image: NSImage?) -> Color {
+        guard let image else { return fallback }
+        let key = ObjectIdentifier(image)
+        if let cached = cache[key] { return Color(nsColor: cached) }
+        guard let color = dominant(in: image) else { return fallback }
+        if cache.count > 30 { cache.removeAll() }
+        cache[key] = color
+        return Color(nsColor: color)
+    }
+
+    private static func dominant(in image: NSImage) -> NSColor? {
+        // Konteks bitmap CG sendiri — tidak menyentuh NSGraphicsContext.current, karena fungsi ini
+        // dipanggil di tengah render SwiftUI.
+        let side = 12
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let ctx = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.interpolationQuality = .medium
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: side, height: side))
+        guard let data = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+        func pixel(_ x: Int, _ y: Int) -> NSColor {
+            let i = (y * side + x) * 4
+            return NSColor(deviceRed: CGFloat(data[i]) / 255, green: CGFloat(data[i + 1]) / 255,
+                           blue: CGFloat(data[i + 2]) / 255, alpha: 1)
+        }
+
+        var best: (score: CGFloat, color: NSColor)?
+        var sum = (r: CGFloat(0), g: CGFloat(0), b: CGFloat(0), n: CGFloat(0))
+        for x in 0..<side {
+            for y in 0..<side {
+                let c = pixel(x, y)
+                sum = (sum.r + c.redComponent, sum.g + c.greenComponent, sum.b + c.blueComponent, sum.n + 1)
+                var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                c.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+                guard b > 0.2 else { continue }
+                let score = s * b
+                if score > (best?.score ?? 0.08) { best = (score, c) }
+            }
+        }
+        let base = best?.color ?? (sum.n > 0 ? NSColor(deviceRed: sum.r / sum.n, green: sum.g / sum.n, blue: sum.b / sum.n, alpha: 1) : nil)
+        guard let base else { return nil }
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        base.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return NSColor(hue: h, saturation: min(max(s, 0.35), 0.85), brightness: max(b, 0.82), alpha: 1)
+    }
+}
+
+enum AppIcons {
+    private static var cache: [String: NSImage] = [:]
+
+    static func icon(for bundleID: String?) -> NSImage? {
+        guard let bundleID else { return nil }
+        if let cached = cache[bundleID] { return cached }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+              let icon = standardRange(NSWorkspace.shared.icon(forFile: url.path)) else { return nil }
+        cache[bundleID] = icon
+        return icon
+    }
+
+    /// Ikon file (untuk Shelf), juga dalam rentang warna standar.
+    static func fileIcon(_ url: URL) -> NSImage {
+        let key = "file:" + url.path
+        if let cached = cache[key] { return cached }
+        let raw = NSWorkspace.shared.icon(forFile: url.path)
+        let icon = standardRange(raw) ?? raw
+        if cache.count > 200 { cache.removeAll() }
+        cache[key] = icon
+        return icon
+    }
+
+    /// Gambar ulang ke bitmap sRGB 8-bit. Ikon macOS modern bisa berwarna extended/HDR, dan satu gambar
+    /// HDR membuat SwiftUI menurunkan kecerahan seluruh tampilan di sekitarnya (putih jadi abu-abu).
+    static func standardRange(_ image: NSImage, side: Int = 64) -> NSImage? {
+        var rect = CGRect(x: 0, y: 0, width: side, height: side)
+        guard let source = image.cgImage(forProposedRect: &rect, context: nil, hints: nil),
+              let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0, space: srgb,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.interpolationQuality = .high
+        ctx.draw(source, in: rect)
+        guard let cg = ctx.makeImage() else { return nil }
+        return NSImage(cgImage: cg, size: NSSize(width: side, height: side))
+    }
+
+    static func open(_ bundleID: String?) {
+        guard let bundleID, let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
+        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 }
 
@@ -300,9 +404,12 @@ struct MediaCard: View {
     let now: Date
     let onCommand: (MediaCommand) -> Void
 
+    private var accent: Color { ArtworkPalette.accent(for: nowPlaying?.artwork) }
+
     private func time(_ t: Double) -> String {
         let s = max(0, Int(t))
-        return String(format: "%d:%02d", s / 60, s % 60)
+        return s >= 3600 ? String(format: "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
+                         : String(format: "%d:%02d", s / 60, s % 60)
     }
 
     var body: some View {
@@ -313,48 +420,85 @@ struct MediaCard: View {
                 placeholder
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .tile()
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .animation(.easeInOut(duration: 0.4), value: nowPlaying?.title)
+    }
+
+    // Latar: tile gelap dengan pendaran warna artwork dari kiri.
+    private var background: some View {
+        ZStack {
+            Palette.tile
+            if nowPlaying?.artwork != nil {
+                LinearGradient(colors: [accent.opacity(0.32), accent.opacity(0.06), .clear],
+                               startPoint: .leading, endPoint: .trailing)
+            }
+        }
     }
 
     private func player(_ np: NowPlaying) -> some View {
         let pos = np.position(at: now)
-        let fraction = np.duration > 0 ? pos / np.duration : 0
-        return HStack(spacing: 12) {
-            ArtworkView(image: np.artwork, size: 76, radius: 12)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(np.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .lineLimit(1)
-                    Spacer(minLength: 6)
-                    Text(np.sourceName)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(Palette.secondary)
+        let fraction = np.duration > 0 ? min(1, pos / np.duration) : 0
+        return HStack(spacing: 14) {
+            // Artwork besar + ikon app sumber di pojok (klik → buka app-nya).
+            ArtworkView(image: np.artwork, size: 104, radius: 18)
+                .overlay(alignment: .bottomTrailing) {
+                    if let icon = AppIcons.icon(for: np.sourceBundleID) {
+                        Button { AppIcons.open(np.sourceBundleID) } label: {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .padding(2)
+                                .background(Circle().fill(Color.black.opacity(0.75)))
+                        }
+                        .buttonStyle(PressScaleStyle())
+                        .padding(5)
+                    }
                 }
-                Text(np.artist)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Palette.secondary)
+                .shadow(color: accent.opacity(0.45), radius: 14, y: 4)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(np.title)
+                    .font(.system(size: 15, weight: .bold))
                     .lineLimit(1)
-                HStack(spacing: 6) {
-                    Text(time(pos))
+                Text(np.artist.isEmpty ? np.sourceName : np.artist)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+                    .padding(.top, 2)
+
+                Spacer(minLength: 6)
+
+                VStack(spacing: 4) {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule().fill(Color.white.opacity(0.15))
-                            Capsule().fill(Color.white).frame(width: geo.size.width * min(1, fraction))
+                            Capsule().fill(accent).frame(width: max(5, geo.size.width * fraction))
                         }
                     }
-                    .frame(height: 4)
-                    Text("-" + time(np.duration - pos))
+                    .frame(height: 5)
+                    HStack {
+                        Text(time(pos))
+                        Spacer()
+                        Text(np.duration > 0 ? time(np.duration) : "--:--")
+                    }
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Palette.secondary)
                 }
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .foregroundStyle(Palette.secondary)
-                HStack(spacing: 26) {
-                    control("backward.fill", 13) { onCommand(.previous) }
-                    control(np.isPlaying ? "pause.fill" : "play.fill", 17) { onCommand(.playPause) }
-                    control("forward.fill", 13) { onCommand(.next) }
+
+                Spacer(minLength: 6)
+
+                HStack(spacing: 0) {
+                    Spacer()
+                    control("backward.fill", 16) { onCommand(.previous) }
+                    Spacer()
+                    control(np.isPlaying ? "pause.fill" : "play.fill", 26) { onCommand(.playPause) }
+                    Spacer()
+                    control("forward.fill", 16) { onCommand(.next) }
+                    Spacer()
                 }
-                .frame(maxWidth: .infinity)
             }
         }
     }
@@ -362,26 +506,26 @@ struct MediaCard: View {
     private func control(_ symbol: String, _ size: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: size, weight: .semibold))
+                .font(.system(size: size, weight: .bold))
                 .contentTransition(.symbolEffect(.replace))
-                .frame(width: 26, height: 20)
+                .frame(width: size + 18, height: 30)
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressScaleStyle())
     }
 
     private var placeholder: some View {
-        HStack(spacing: 12) {
-            ArtworkView(image: nil, size: 76, radius: 12)
+        HStack(spacing: 14) {
+            ArtworkView(image: nil, size: 104, radius: 18)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Tidak ada yang diputar")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 15, weight: .bold))
                 if let app = deniedApp {
                     Text("Izinkan NotchIsland mengontrol \(app.displayName) di Pengaturan Sistem › Privasi & Keamanan › Otomatisasi.")
                         .font(.system(size: 11))
                         .foregroundStyle(.orange)
                 } else {
-                    Text("Putar musik atau video di app mana pun.")
+                    Text("Putar musik atau video di app mana pun — Spotify, Music, YouTube di browser.")
                         .font(.system(size: 11))
                         .foregroundStyle(Palette.secondary)
                 }

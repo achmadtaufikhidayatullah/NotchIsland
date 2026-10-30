@@ -58,7 +58,8 @@ Tab widget ada di kiri notch. Jam dan baterai ada di kanan.
 |---|---|
 | **Claude** | Kartu *Claude Usage* (limit sesi/mingguan resmi + waktu reset + perkiraan habis), kartu sesi (prompt, tool aktif, progress task list, ukuran konteks) |
 | **Antigravity** | Kuota per model (Gemini, Claude & GPT × 5 jam/mingguan), status agent |
-| **Sedang Diputar** | Artwork/thumbnail, judul, artis/channel, progress, ⏮ ⏯ ⏭. Mendukung semua pemutar, termasuk YouTube di browser |
+| **Sedang Diputar** | Artwork besar dengan ikon app sumber, judul, artis/channel, progress, ⏮ ⏯ ⏭. Warna aksen (artis, progress, pendaran latar) diambil dari artwork. Mendukung semua pemutar, termasuk YouTube di browser |
+| **Kalender** | Bulan & strip 7 hari (hari ini ditandai), acara hari yang dipilih dengan warna kalendernya, dan tombol **Gabung** untuk link Zoom/Meet/Teams. Membaca Kalender macOS (termasuk akun Google/iCloud yang tersinkron); izin diminta saat menekan *Izinkan akses* |
 | **Shelf & AirDrop** | Seret file ke notch untuk dititip sementara, lalu seret keluar ke app/folder lain; lepas file di zona AirDrop untuk langsung mengirimnya. Klik kanan item untuk *Tampilkan di Finder*, *Kirim via AirDrop*, *Hapus dari shelf* |
 | **Jam & Kontrol** | Jam, tanggal, slider volume & brightness (nonaktif secara default) |
 | **Folder** | Shortcut Home, Desktop, Dokumen, Unduhan, Aplikasi (nonaktif secara default) |

@@ -380,7 +380,7 @@ struct SideCardView: View {
             if model.enabledWidgets.contains(.media), model.nowPlaying != nil {
                 MediaCard(nowPlaying: model.nowPlaying, deniedApp: model.mediaDenied, now: model.now,
                           onCommand: model.sendMedia)
-                    .frame(height: 104)
+                    .frame(height: 132)
             }
         }
         .padding(12)
