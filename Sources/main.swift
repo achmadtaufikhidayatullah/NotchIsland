@@ -58,7 +58,8 @@ enum NotchDetector {
             ?? CGMainDisplayID()
 
         // macOS 12+: area kiri & kanan notch disediakan oleh sistem → lebar notch presisi.
-        if top > 0, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+        if top > 0, !simulateNoNotch,
+           let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             let width = frame.width - left.width - right.width
             return NotchGeometry(screenFrame: frame,
                                  notchSize: CGSize(width: width, height: top),
@@ -159,6 +160,8 @@ final class NotchModel: ObservableObject {
     @Published var now = Date()
     @Published var battery: BatteryState? = nil
     @Published var chargeAlert = false
+    /// App terdepan sedang full-screen di layar island.
+    @Published var fullscreenActive = false
     @Published var volume: Float? = nil
     @Published var brightness: Float? = nil
     @Published var claudeSessions: [ClaudeSession] = []
@@ -253,6 +256,8 @@ final class NotchModel: ObservableObject {
     func refresh() {
         now = Date()
         battery = BatteryState.read()
+        let fullscreen = FullScreenDetector.isActive(on: geometry.screenFrame)
+        if fullscreen != fullscreenActive { fullscreenActive = fullscreen }
         refreshClaude()
         refreshAntigravity()
         refreshMedia()
@@ -307,6 +312,8 @@ final class NotchModel: ObservableObject {
     /// Lebar sayap live activity yang bisa diklik (kiri/kanan notch), nil bila tidak ada.
     /// Mengikuti lebar tampilan supaya ikon menu bar di luar sayap tetap bisa diklik.
     var clickableWing: CGFloat? {
+        // Island disembunyikan saat full-screen di layar tanpa notch → jangan tangkap klik.
+        if !geometry.hasPhysicalNotch, fullscreenActive { return nil }
         if terminalAlert != nil { return 140 }
         if limitAlert != nil || chargeAlert { return nil }
         let claudeOn = enabledWidgets.contains(.claude), agOn = enabledWidgets.contains(.antigravity)
@@ -793,6 +800,13 @@ struct NotchView: View {
             removal: .opacity.animation(.easeOut(duration: 0.12)))
     }
 
+    /// Di layar tanpa notch, pil hitam permanen akan menutupi konten (tab browser, judul jendela),
+    /// jadi island hanya terlihat saat ada live activity atau sedang dibuka — dan tidak saat full-screen.
+    private var invisible: Bool {
+        guard !model.expanded, !g.hasPhysicalNotch else { return false }
+        return compact == .none || model.fullscreenActive
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
@@ -823,9 +837,12 @@ struct NotchView: View {
                 }
             }
             .frame(width: size.width, height: size.height)
+            .opacity(invisible ? 0 : 1)
+            .scaleEffect(invisible ? 0.85 : 1, anchor: .top)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(islandSpring, value: invisible)
         .environment(\.colorScheme, .dark)
         .foregroundStyle(.white)
         .animation(islandSpring, value: model.expanded)
@@ -1295,6 +1312,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    private var hoverWork: DispatchWorkItem?
+
+    private func expandIsland() {
+        hoverWork?.cancel()
+        hoverWork = nil
+        collapseWork?.cancel()
+        model.refreshControls()
+        model.autoSelectWidget()
+        model.expanded = true
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        panel.ignoresMouseEvents = false
+    }
+
+    private func scheduleHoverExpand(in zone: CGRect) {
+        guard hoverWork == nil else { return }
+        let work = DispatchWorkItem { [weak self] in
+            self?.hoverWork = nil
+            guard let self, !self.model.expanded, zone.contains(NSEvent.mouseLocation) else { return }
+            self.expandIsland()
+        }
+        hoverWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+    }
+
     func trackMouse() {
         let p = NSEvent.mouseLocation
         let g = model.geometry
@@ -1315,12 +1356,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         if !model.expanded, hotZone.contains(p) {
-            collapseWork?.cancel()
-            model.refreshControls()
-            model.autoSelectWidget()
-            model.expanded = true
-            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
-            panel.ignoresMouseEvents = false
+            if g.hasPhysicalNotch {
+                expandIsland()
+            } else if !model.fullscreenActive {
+                // Tanpa notch, zona hover menimpa konten sungguhan (tab, menu):
+                // buka hanya bila kursor berhenti sebentar, bukan sekadar lewat.
+                scheduleHoverExpand(in: hotZone)
+            }
         } else if model.expanded, !dragging, !expandedRect.insetBy(dx: -6, dy: -6).contains(p) {
             guard collapseWork == nil else { return }
             let work = DispatchWorkItem { [weak self] in
@@ -1556,6 +1598,10 @@ if CommandLine.arguments.contains("--test-limits") {
 
 // Debug: `NotchIsland --print-claude` mencetak data monitor Claude lalu keluar.
 if CommandLine.arguments.contains("--print-claude") {
+    if let screen = NotchDetector.preferredScreen() {
+        let g = NotchDetector.detect(on: screen)
+        print("layar: \(g.screenName) · notch fisik: \(g.hasPhysicalNotch ? "ya" : "tidak") · \(Int(g.notchSize.width))×\(Int(g.notchSize.height)) pt · full-screen: \(FullScreenDetector.isActive(on: g.screenFrame) ? "ya" : "tidak")")
+    }
     let monitor = ClaudeMonitor()
     let sessions = monitor.readSessions()
     for s in sessions {

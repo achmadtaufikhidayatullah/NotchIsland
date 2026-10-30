@@ -6,7 +6,7 @@
 
 Dynamic Island untuk Mac. App ini mengubah notch MacBook menjadi pulau hidup yang menampilkan aktivitas **Claude Code**, **Antigravity**, media yang sedang diputar, peringatan limit, dan command terminal yang selesai.
 
-App otomatis mendeteksi device dan ukuran notch, jadi posisinya presisi. Di layar tanpa notch (monitor eksternal atau Mac lama), app membuat "pulau virtual" setinggi menu bar.
+App otomatis mendeteksi device dan ukuran notch, jadi posisinya presisi. Di layar tanpa notch (MacBook Air/Pro M1, Mac Intel, monitor eksternal), island **tidak terlihat saat diam**. Island hanya muncul saat ada live activity atau saat kursor berhenti sebentar di tengah atas layar, dan disembunyikan saat app full-screen, supaya tidak menutupi tab browser atau judul jendela.
 
 > NotchIsland tidak berafiliasi dengan Anthropic, Google, maupun Apple.
 
@@ -58,7 +58,7 @@ Ada dua cara: **unduh DMG** (paling mudah, tanpa terminal) atau **build sendiri 
    - jalankan di Terminal: `xattr -dr com.apple.quarantine /Applications/NotchIsland.app`
 4. Ikon kapsul muncul di menu bar. Lanjutkan ke [langkah 5](#5-jalankan) dan seterusnya untuk mengaktifkan login otomatis dan integrasi.
 
-Mendukung Apple Silicon dan Intel. Di Mac tanpa notch, island muncul sebagai pulau virtual di menu bar.
+Mendukung Apple Silicon dan Intel. Di Mac tanpa notch, island hanya muncul saat ada aktivitas (tidak menutupi konten saat diam).
 
 ### B. Build dari source — cara cepat (kalau sudah terbiasa dengan terminal)
 
@@ -78,7 +78,7 @@ Total waktunya sekitar 10–20 menit, kebanyakan untuk mengunduh compiler di lan
 #### 0. Pastikan Mac-mu cocok
 
 Klik logo  di pojok kiri atas › **Tentang Mac Ini**. Yang dibutuhkan:
-- **Chip:** Apple M1 atau lebih baru, atau Intel (di Mac Intel tidak ada notch, jadi island muncul sebagai pulau virtual)
+- **Chip:** Apple M1 atau lebih baru, atau Intel (di Mac tanpa notch, island hanya muncul saat ada aktivitas)
 - **macOS:** 14 (Sonoma) atau lebih baru
 
 #### 1. Buka Terminal
@@ -243,6 +243,7 @@ NotchIsland **tidak mengirim data ke server mana pun** dan tidak menyimpan promp
 | Musik/YouTube tidak terbaca | Cek apakah media muncul di Control Center › Now Playing. Untuk Music/Spotify, izinkan di Pengaturan Sistem › Privasi & Keamanan › Otomatisasi. |
 | Posisi notch meleset | Menu › Deteksi ulang layar. |
 | Cek data dari terminal | `build/NotchIsland.app/Contents/MacOS/NotchIsland --print-claude` |
+| Uji perilaku Mac tanpa notch di Mac ber-notch | `open build/NotchIsland.app --args --simulate-no-notch` |
 | Uji logika peringatan limit | `build/NotchIsland.app/Contents/MacOS/NotchIsland --test-limits` |
 
 ---
