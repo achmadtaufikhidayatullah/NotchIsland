@@ -45,11 +45,23 @@ Tab widget ada di kiri notch. Jam dan baterai ada di kanan.
 
 ## Instalasi
 
-### Cara cepat (kalau sudah terbiasa dengan terminal)
+Ada dua cara: **unduh DMG** (paling mudah, tanpa terminal) atau **build sendiri dari source**.
+
+### A. Unduh DMG (disarankan)
+
+1. Unduh **[NotchIsland.dmg](https://github.com/achmadtaufikhidayatullah/NotchIsland/releases/latest/download/NotchIsland.dmg)** dari halaman [Releases](https://github.com/achmadtaufikhidayatullah/NotchIsland/releases/latest).
+2. Buka file DMG, lalu seret **NotchIsland** ke folder **Applications**.
+3. Buka NotchIsland dari folder Applications. App ini belum dinotarisasi Apple, jadi pertama kali dibuka macOS akan menolaknya:
+   - buka **Pengaturan Sistem › Privasi & Keamanan**, gulir ke bawah, lalu klik **Tetap Buka** (*Open Anyway*) di samping NotchIsland; **atau**
+   - jalankan di Terminal: `xattr -dr com.apple.quarantine /Applications/NotchIsland.app`
+4. Ikon kapsul muncul di menu bar. Lanjutkan ke [langkah 5](#5-jalankan) dan seterusnya untuk mengaktifkan login otomatis dan integrasi.
+
+Mendukung Apple Silicon dan Intel. Di Mac tanpa notch, island muncul sebagai pulau virtual di menu bar.
+
+### B. Build dari source — cara cepat (kalau sudah terbiasa dengan terminal)
 
 ```bash
 xcode-select --install          # sekali saja, kalau belum
-brew install zstd               # perlu Homebrew
 git clone https://github.com/achmadtaufikhidayatullah/NotchIsland.git ~/Development/Swift/NotchIsland
 cd ~/Development/Swift/NotchIsland
 ./build.sh && open build/NotchIsland.app
@@ -57,14 +69,14 @@ cd ~/Development/Swift/NotchIsland
 ./hooks/install-zsh-hook.sh     # notifikasi command terminal (opsional)
 ```
 
-### Langkah demi langkah (untuk pemula)
+### C. Build dari source — langkah demi langkah (untuk pemula)
 
-Total waktunya sekitar 15–30 menit, kebanyakan untuk mengunduh alat bantu di langkah 2 dan 3. Cukup **salin & tempel** perintah di kotak abu-abu ke Terminal, lalu tekan **Enter**.
+Total waktunya sekitar 10–20 menit, kebanyakan untuk mengunduh compiler di langkah 2. Cukup **salin & tempel** perintah di kotak abu-abu ke Terminal, lalu tekan **Enter**.
 
 #### 0. Pastikan Mac-mu cocok
 
 Klik logo  di pojok kiri atas › **Tentang Mac Ini**. Yang dibutuhkan:
-- **Chip:** Apple M1, M2, M3, M4, atau lebih baru (bukan Intel)
+- **Chip:** Apple M1 atau lebih baru, atau Intel (di Mac Intel tidak ada notch, jadi island muncul sebagai pulau virtual)
 - **macOS:** 14 (Sonoma) atau lebih baru
 
 #### 1. Buka Terminal
@@ -79,21 +91,7 @@ xcode-select --install
 
 Akan muncul jendela dialog. Klik **Install**, setujui lisensinya, lalu tunggu sampai selesai (±5–15 menit). Kalau muncul pesan *"already installed"*, berarti sudah terpasang dan kamu bisa langsung ke langkah berikutnya.
 
-#### 3. Pasang Homebrew dan zstd
-
-Homebrew adalah pengelola aplikasi terminal untuk Mac. Lewati bagian ini kalau perintah `brew --version` sudah menampilkan nomor versi.
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-Kamu akan diminta **password Mac** (saat diketik memang tidak terlihat, itu normal). Setelah selesai, Homebrew menampilkan bagian **"Next steps"** berisi dua atau tiga perintah. **Jalankan perintah-perintah itu**, karena tanpa itu perintah `brew` tidak dikenali. Lalu pasang zstd:
-
-```bash
-brew install zstd
-```
-
-#### 4. Unduh kode NotchIsland
+#### 3. Unduh kode NotchIsland
 
 ```bash
 mkdir -p ~/Development/Swift
@@ -103,15 +101,15 @@ cd ~/Development/Swift/NotchIsland
 
 Kamu boleh memakai folder lain, asalkan perintah `cd` mengarah ke folder tersebut.
 
-#### 5. Build aplikasinya
+#### 4. Build aplikasinya
 
 ```bash
 ./build.sh
 ```
 
-Proses ini memakan waktu ±1 menit dan selesai dengan pesan **✓ Selesai**. Kalau ada yang kurang, skrip memberi tahu perintah yang perlu dijalankan. Kalau muncul `permission denied`, jalankan `chmod +x build.sh hooks/*.sh` lalu ulangi.
+Proses ini memakan waktu ±1 menit dan selesai dengan pesan **✓ Selesai**. Semua yang dibutuhkan sudah ada di repo (termasuk decoder zstd di `ThirdParty/`), jadi tidak perlu Homebrew. Kalau ada yang kurang, skrip memberi tahu perintah yang perlu dijalankan. Kalau muncul `permission denied`, jalankan `chmod +x build.sh release.sh hooks/*.sh` lalu ulangi.
 
-#### 6. Jalankan
+#### 5. Jalankan
 
 ```bash
 open build/NotchIsland.app
@@ -121,19 +119,19 @@ open build/NotchIsland.app
 - **Arahkan kursor ke notch** untuk membuka island.
 - Supaya otomatis jalan setiap Mac dinyalakan: ikon kapsul › **Buka saat login**.
 
-#### 7. Hubungkan Claude Code (opsional, untuk monitoring Claude)
+#### 6. Hubungkan Claude Code (opsional, untuk monitoring Claude)
 
 Klik ikon kapsul › **Integrasi** › **Claude Code (status sesi)** › **Hubungkan**.
 
 Lalu **mulai prompt baru** di Claude Code (terminal atau aplikasi Claude Desktop). Island akan menampilkan status kerjanya. Untuk persen limit resmi, cukup buka **aplikasi Claude Desktop** sekali.
 
-#### 8. Notifikasi command terminal (opsional)
+#### 7. Notifikasi command terminal (opsional)
 
 Klik ikon kapsul › **Integrasi** › **Terminal zsh (command selesai)** › **Aktifkan**.
 
 Tutup lalu buka lagi Terminal. Uji dengan `sleep 31`, lalu pindah ke app lain: notch akan menampilkan ✓ saat command selesai.
 
-#### 9. Izin yang mungkin diminta macOS
+#### 8. Izin yang mungkin diminta macOS
 
 | Dialog | Kapan | Pilih |
 |---|---|---|
@@ -247,6 +245,19 @@ NotchIsland **tidak mengirim data ke server mana pun** dan tidak menyimpan promp
 
 ---
 
+## Membuat rilis (untuk maintainer)
+
+```bash
+./release.sh 1.0.0
+```
+
+- Build **universal** (Apple Silicon + Intel), lalu membuat `dist/NotchIsland-1.0.0.dmg` dan salinan bernama tetap `dist/NotchIsland.dmg`.
+- Buat rilis baru di GitHub dengan tag `v1.0.0`, lalu unggah **`dist/NotchIsland.dmg`**. Link download di README dan landing page selalu mengarah ke rilis terbaru lewat nama file ini.
+- Untuk pengembangan sehari-hari, `./build.sh` cukup membangun untuk arsitektur Mac-mu saja (lebih cepat). Build universal: `ARCHS="arm64 x86_64" ./build.sh`.
+- App ditandatangani ad-hoc dan belum dinotarisasi. Supaya bisa dibuka dengan dobel klik tanpa peringatan Gatekeeper, diperlukan sertifikat Developer ID dari Apple Developer Program.
+
+---
+
 ## Mencopot sepenuhnya
 
 ```bash
@@ -275,8 +286,10 @@ NotchIsland/
 ├── NowPlayingBridge/       # dylib + loader Perl untuk Now Playing sistem
 ├── hooks/                  # hook Claude, hook zsh, skrip pasang/lepas
 ├── assets/                 # ikon app (make-icon.swift → AppIcon.icns)
+├── ThirdParty/zstd/        # decoder zstd v1.5.7 (source resmi, BSD)
 ├── zstd-bridge.h           # header zstd untuk Swift
-└── build.sh
+├── build.sh                # build app (arsitektur Mac ini / universal)
+└── release.sh              # build universal + DMG
 ```
 
 ---
@@ -290,4 +303,5 @@ NotchIsland/
 ## Kredit
 
 - Pendekatan membaca limit dari cache Claude Desktop dan kuota dari language server Antigravity terinspirasi dari [Codenotch](https://github.com/IGedeMiarta/codenotch) (MIT).
+- Decoder [zstd](https://github.com/facebook/zstd) v1.5.7 oleh Meta (BSD), disertakan di `ThirdParty/zstd`.
 - Jembatan Now Playing ditulis ulang mengikuti pola [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause).

@@ -1,5 +1,6 @@
-# Hasil build
+# Hasil build & rilis
 build/
+dist/
 
 # macOS
 .DS_Store
