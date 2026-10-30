@@ -31,6 +31,15 @@ App otomatis mendeteksi device dan ukuran notch, jadi posisinya presisi. Di laya
 
 Saat tidak ada kejadian, notch kembali hitam polos seperti bawaan Mac.
 
+### Shelf & AirDrop
+
+Seret file dari Finder/desktop ke arah notch: island terbuka di tab **Shelf** dengan dua zona.
+
+- **Shelf** — file "dititip" di notch (hanya rujukannya; file asli tetap di tempatnya). Seret keluar ke app atau folder mana pun, klik dua kali untuk membuka. Isi shelf diingat setelah restart; file yang dipindah/dihapus otomatis hilang dari shelf.
+- **AirDrop** — lepas file di sini untuk langsung membuka pemilih perangkat AirDrop, atau klik untuk mengirim semua isi shelf.
+
+Di MacBook ber-notch, area notch fisik (yang memang tertutup kamera) menjadi penangkap seretan, jadi island selalu terbuka saat file diseret ke sana.
+
 ### Mode sisi layar (opsional)
 
 Pengaturan › Tampilan › Posisi › **Sisi kanan / kiri layar**: island menjadi tab vertikal yang menempel di tepi layar, cocok untuk Mac tanpa notch atau bila tidak ingin ada apa pun di tengah atas.
@@ -50,6 +59,7 @@ Tab widget ada di kiri notch. Jam dan baterai ada di kanan.
 | **Claude** | Kartu *Claude Usage* (limit sesi/mingguan resmi + waktu reset + perkiraan habis), kartu sesi (prompt, tool aktif, progress task list, ukuran konteks) |
 | **Antigravity** | Kuota per model (Gemini, Claude & GPT × 5 jam/mingguan), status agent |
 | **Sedang Diputar** | Artwork/thumbnail, judul, artis/channel, progress, ⏮ ⏯ ⏭. Mendukung semua pemutar, termasuk YouTube di browser |
+| **Shelf & AirDrop** | Seret file ke notch untuk dititip sementara, lalu seret keluar ke app/folder lain; lepas file di zona AirDrop untuk langsung mengirimnya. Klik kanan item untuk *Tampilkan di Finder*, *Kirim via AirDrop*, *Hapus dari shelf* |
 | **Jam & Kontrol** | Jam, tanggal, slider volume & brightness (nonaktif secara default) |
 | **Folder** | Shortcut Home, Desktop, Dokumen, Unduhan, Aplikasi (nonaktif secara default) |
 

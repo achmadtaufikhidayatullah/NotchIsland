@@ -374,6 +374,9 @@ struct SideCardView: View {
             }
             .id(model.sideFocusedProvider)
             .transition(.opacity.combined(with: .offset(y: 6)))
+            if model.enabledWidgets.contains(.shelf), !model.shelf.isEmpty {
+                ShelfWidget(model: model).frame(height: 112)
+            }
             if model.enabledWidgets.contains(.media), model.nowPlaying != nil {
                 MediaCard(nowPlaying: model.nowPlaying, deniedApp: model.mediaDenied, now: model.now,
                           onCommand: model.sendMedia)

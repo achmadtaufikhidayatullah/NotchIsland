@@ -179,6 +179,12 @@ final class NotchModel: ObservableObject {
     }
     @Published var nowPlaying: NowPlaying? = nil
     @Published var mediaFlash = false
+    /// File yang dititip di shelf (rujukan; file aslinya tetap di tempatnya).
+    @Published var shelf: [URL] {
+        didSet { UserDefaults.standard.set(shelf.map(\.path), forKey: Self.shelfKey) }
+    }
+    /// Ada file yang sedang diseret ke arah notch.
+    @Published var fileDragActive = false
     @Published var limitAlert: LimitAlert? = nil
     @Published var terminalAlert: TerminalEvent? = nil
     // Pengaturan › Notifikasi
@@ -265,6 +271,15 @@ final class NotchModel: ObservableObject {
         let defaults = UserDefaults.standard
         var widgets = defaults.stringArray(forKey: "enabledWidgets")?.compactMap(WidgetKind.init(rawValue:))
             ?? WidgetKind.defaultEnabled
+        // Widget Shelf ikut aktif sekali untuk pengaturan yang sudah tersimpan.
+        if !defaults.bool(forKey: "addedShelf") {
+            defaults.set(true, forKey: "addedShelf")
+            if defaults.stringArray(forKey: "enabledWidgets") != nil, !widgets.contains(.shelf) {
+                let current = widgets
+                widgets = WidgetKind.allCases.filter { current.contains($0) || $0 == .shelf }
+                defaults.set(widgets.map(\.rawValue), forKey: "enabledWidgets")
+            }
+        }
         // Widget Antigravity ikut aktif sekali untuk pengaturan yang sudah tersimpan.
         if !defaults.bool(forKey: "addedAntigravity") {
             defaults.set(true, forKey: "addedAntigravity")
@@ -288,6 +303,7 @@ final class NotchModel: ObservableObject {
         sideMini = defaults.object(forKey: "sideMini") as? Bool ?? false
         Self.writeTerminalMinSeconds(minSeconds)
         mediaLiveMode = defaults.string(forKey: "mediaLiveMode").flatMap(MediaLiveMode.init(rawValue:)) ?? .glance
+        shelf = Self.loadShelf()
         selectedWidget = enabledWidgets.first ?? .claude
         battery = BatteryState.read()
         refresh()
@@ -305,6 +321,7 @@ final class NotchModel: ObservableObject {
         refreshMedia()
         checkLimits()
         checkTerminal()
+        pruneShelf()
     }
 
     // MARK: Notifikasi command terminal
@@ -446,7 +463,9 @@ final class NotchModel: ObservableObject {
 
     /// Saat pulau dibuka, langsung tampilkan widget yang sedang "hidup".
     func autoSelectWidget() {
-        if enabledWidgets.contains(.claude), primaryClaude?.isActive == true {
+        if fileDragActive, enabledWidgets.contains(.shelf) {
+            selectedWidget = .shelf
+        } else if enabledWidgets.contains(.claude), primaryClaude?.isActive == true {
             selectedWidget = .claude
         } else if enabledWidgets.contains(.antigravity), let a = agActivity, a.state != .idle {
             selectedWidget = .antigravity
@@ -1168,6 +1187,8 @@ struct NotchView: View {
         case .media:
             MediaCard(nowPlaying: model.nowPlaying, deniedApp: model.mediaDenied, now: model.now,
                       onCommand: model.sendMedia)
+        case .shelf:
+            ShelfWidget(model: model)
         case .clock:
             HStack(spacing: 10) {
                 clockTile
@@ -1299,6 +1320,8 @@ final class NotchPanel: NSPanel {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let settings = SettingsWindowController()
+    var dropCatcher: NotchPanel?
+    var dragPasteboardCount = NSPasteboard(name: .drag).changeCount
     var sideTabPanel: NotchPanel!
     var sideCardPanel: NotchPanel!
     var sideSink: AnyCancellable?
@@ -1328,6 +1351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.contentView = host
         panel.orderFrontRegardless()
         setupSidePanels()
+        setupDropCatcher()
         // Setelah notifikasi terminal hilang, klik kembali tembus ke menu bar.
         // Setelah live activity hilang, klik kembali tembus ke menu bar (dicek tiap detik).
         terminalSink = model.$now.sink { [weak self] _ in
@@ -1381,6 +1405,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.setFrame(panelFrame(), display: true)
         }
         layoutSide()
+        layoutDropCatcher()
+    }
+
+    // MARK: Shelf: menangkap file yang diseret ke notch
+
+    func setupDropCatcher() {
+        let catcher = NotchPanel(frame: model.geometry.notchRect)
+        catcher.ignoresMouseEvents = false
+        let view = DropCatcherView(frame: CGRect(origin: .zero, size: model.geometry.notchRect.size))
+        view.autoresizingMask = [.width, .height]
+        view.onFileDragEntered = { [weak self] in self?.fileDragApproached() }
+        catcher.contentView = view
+        dropCatcher = catcher
+
+        // Seretan dari app lain: catat awal & akhir supaya tahu kapan file sedang diseret.
+        let down: (NSEvent) -> Void = { [weak self] _ in
+            self?.dragPasteboardCount = NSPasteboard(name: .drag).changeCount
+        }
+        let up: (NSEvent) -> Void = { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self?.model.fileDragActive = false }
+        }
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: down) { monitors.append(m) }
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp, handler: up) { monitors.append(m) }
+        if let m = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp, handler: { up($0); return $0 }) { monitors.append(m) }
+        layoutDropCatcher()
+    }
+
+    /// Hanya di notch fisik (area kamera, tidak bisa diklik) dan posisi tengah atas.
+    func layoutDropCatcher() {
+        guard let catcher = dropCatcher else { return }
+        let active = model.placement == .top && model.geometry.hasPhysicalNotch && model.enabledWidgets.contains(.shelf)
+        guard active else { catcher.orderOut(nil); return }
+        catcher.setFrame(model.geometry.notchRect, display: false)
+        if !catcher.isVisible {
+            catcher.orderFrontRegardless()
+            panel.orderFrontRegardless()   // island tetap di atas penangkap
+        }
+    }
+
+    /// File diseret mendekati notch → buka island di tab Shelf supaya bisa di-drop.
+    private func fileDragApproached() {
+        guard model.placement == .top, model.enabledWidgets.contains(.shelf) else { return }
+        model.beginFileDrag()
+        if !model.expanded { expandIsland() } else { model.selectedWidget = .shelf }
+    }
+
+    /// Cadangan untuk layar tanpa notch: deteksi seretan file lewat pasteboard drag.
+    private func checkFileDrag(at p: CGPoint) {
+        guard !model.fileDragActive, NSEvent.pressedMouseButtons & 1 != 0 else { return }
+        let pb = NSPasteboard(name: .drag)
+        guard pb.changeCount != dragPasteboardCount,
+              pb.types?.contains(.fileURL) == true else { return }
+        let zone = model.geometry.notchRect.insetBy(dx: -80, dy: -30)
+        if zone.contains(p) { fileDragApproached() }
     }
 
     // MARK: Mode sisi layar
@@ -1536,6 +1614,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                   width: es.width, height: es.height)
         let dragging = NSEvent.pressedMouseButtons & 1 != 0
 
+        checkFileDrag(at: p)
         if !model.expanded, model.terminalAlert != nil, let wing = model.clickableWing {
             panel.ignoresMouseEvents = !g.notchRect.insetBy(dx: -(wing + 6), dy: -4).contains(p)
             return
