@@ -123,13 +123,13 @@ open build/NotchIsland.app
 
 #### 6. Hubungkan Claude Code (opsional, untuk monitoring Claude)
 
-Klik ikon kapsul › **Integrasi** › **Claude Code (status sesi)** › **Hubungkan**.
+Ikon kapsul › **Pengaturan…** › **Integrasi** › **Claude Code** › **Hubungkan**. (Saat pertama kali dibuka, halaman ini muncul otomatis.)
 
 Lalu **mulai prompt baru** di Claude Code (terminal atau aplikasi Claude Desktop). Island akan menampilkan status kerjanya. Untuk persen limit resmi, cukup buka **aplikasi Claude Desktop** sekali.
 
 #### 7. Notifikasi command terminal (opsional)
 
-Klik ikon kapsul › **Integrasi** › **Terminal zsh (command selesai)** › **Aktifkan**.
+Ikon kapsul › **Pengaturan…** › **Integrasi** › **Terminal (zsh)** › **Hubungkan**.
 
 Tutup lalu buka lagi Terminal. Uji dengan `sleep 31`, lalu pindah ke app lain: notch akan menampilkan ✓ saat command selesai.
 
@@ -155,7 +155,7 @@ pkill -x NotchIsland; open build/NotchIsland.app
 
 ## Detail hook (referensi)
 
-Hook dibutuhkan untuk status Claude Code dan notifikasi terminal. Cara termudah: menu ikon kapsul › **Integrasi** (klik lagi untuk melepas). Skrip di `hooks/` melakukan hal yang sama dari terminal. Semua perubahan hanya menyentuh entri milik NotchIsland, dan file aslinya dibackup lebih dulu.
+Hook dibutuhkan untuk status Claude Code dan notifikasi terminal. Cara termudah: ikon kapsul › **Pengaturan…** › **Integrasi** (tombol Hubungkan / Lepas). Skrip di `hooks/` melakukan hal yang sama dari terminal. Semua perubahan hanya menyentuh entri milik NotchIsland, dan file aslinya dibackup lebih dulu.
 
 ### 1. Hook Claude Code
 
@@ -183,26 +183,28 @@ Memberi tahu island saat command yang berjalan ≥30 detik selesai.
 
 - Menambah satu baris `source …` di `~/.zshrc` (backup: `.zshrc.bak-notchisland`)
 - Aktif di tab/jendela terminal **baru**, atau setelah `source ~/.zshrc`
-- Ubah ambang: `export NOTCH_MIN_SECONDS=60` di `~/.zshrc`
+- Ubah ambang: Pengaturan › Notifikasi › Terminal (atau `export NOTCH_MIN_SECONDS=60` di `~/.zshrc`, yang lebih diutamakan)
 - Diabaikan: Ctrl-C, dan program interaktif (`vim`, `ssh`, `top`, `tail`, `claude`, REPL `node`/`python`, …)
 
 Antigravity dan widget musik **tidak** memerlukan hook.
 
 ---
 
-## Menu (ikon kapsul di menu bar)
+## Menu & Pengaturan
 
-| Item | Fungsi |
+Ikon kapsul di menu bar berisi: **Pengaturan… (⌘,)**, **Hubungkan Claude Code…** (bila belum terhubung), **Tes notifikasi ›**, **Deteksi ulang layar**, dan **Keluar**.
+
+Jendela **Pengaturan**:
+
+| Bagian | Isi |
 |---|---|
-| **Widget** (centang) | Aktifkan/nonaktifkan Claude, Antigravity, Sedang Diputar, Jam & Kontrol, Folder |
-| Bunyi notifikasi agent & limit | Bunyi untuk agent selesai, peringatan limit, dan terminal |
-| Selalu tampilkan usage Claude | Ring % Claude tetap terlihat walau Claude diam (default: mati) |
-| Integrasi › | Pasang/lepas hook **Claude Code** dan **Terminal zsh** (dengan konfirmasi & backup) |
-| Notifikasi command terminal | Nyalakan/matikan notifikasi terminal (hook tetap terpasang) |
-| Buka saat login | Jalankan NotchIsland otomatis setelah login / restart |
-| Live activity musik › | *Sekilas saat mulai / berganti* (default), *Selama diputar*, *Mati* |
-| Tes notifikasi charger / limit / terminal | Lihat contoh tampilan tanpa menunggu kejadian aslinya |
-| Deteksi ulang layar | Hitung ulang posisi notch (mis. setelah ganti monitor) |
+| **Tampilan** | Layar (otomatis ke layar ber-notch / selalu layar menu bar), info notch terdeteksi, tampilkan island saat diam di layar tanpa notch, selalu tampilkan ring usage Claude |
+| **Widget** | Nyala/mati widget (Claude, Antigravity, Sedang Diputar, Jam & Kontrol, Folder), mode live activity musik |
+| **Notifikasi** | Bunyi, ambang peringatan limit (default 80% & 95%), peringatan reset, notifikasi command terminal & durasi minimalnya, tombol tes |
+| **Integrasi** | Hubungkan/lepas Claude Code dan Terminal (zsh), dengan konfirmasi & backup |
+| **Umum** | Buka saat login, versi, cek pembaruan dari GitHub Releases, link situs & source |
+
+Saat pertama kali dibuka, NotchIsland langsung menampilkan **Pengaturan › Integrasi** supaya Claude Code bisa dihubungkan.
 
 ---
 

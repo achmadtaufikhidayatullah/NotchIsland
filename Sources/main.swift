@@ -48,7 +48,9 @@ enum DeviceInfo {
 enum NotchDetector {
     /// Pilih layar yang punya notch; kalau tidak ada, pakai layar utama.
     static func preferredScreen() -> NSScreen? {
-        NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.main ?? NSScreen.screens.first
+        // Pengaturan › Tampilan › Layar: "menubar" = selalu layar dengan menu bar.
+        if UserDefaults.standard.string(forKey: "displayMode") == "menubar" { return NSScreen.screens.first }
+        return NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.main ?? NSScreen.screens.first
     }
 
     static func detect(on screen: NSScreen) -> NotchGeometry {
@@ -179,6 +181,28 @@ final class NotchModel: ObservableObject {
     @Published var mediaFlash = false
     @Published var limitAlert: LimitAlert? = nil
     @Published var terminalAlert: TerminalEvent? = nil
+    // Pengaturan › Notifikasi
+    @Published var limitWarn: Int { didSet { UserDefaults.standard.set(limitWarn, forKey: "limitWarn") } }
+    @Published var limitCritical: Int { didSet { UserDefaults.standard.set(limitCritical, forKey: "limitCritical") } }
+    @Published var limitResetAlerts: Bool { didSet { UserDefaults.standard.set(limitResetAlerts, forKey: "limitResetAlerts") } }
+    @Published var terminalMinSeconds: Int {
+        didSet {
+            UserDefaults.standard.set(terminalMinSeconds, forKey: "terminalMinSeconds")
+            Self.writeTerminalMinSeconds(terminalMinSeconds)
+        }
+    }
+    // Pengaturan › Tampilan
+    @Published var showIdleWithoutNotch: Bool {
+        didSet { UserDefaults.standard.set(showIdleWithoutNotch, forKey: "showIdleWithoutNotch") }
+    }
+
+    /// Hook zsh membaca ambang dari file ini (lihat hooks/notch-terminal.zsh).
+    static func writeTerminalMinSeconds(_ seconds: Int) {
+        let url = Integrations.supportDir.appendingPathComponent("terminal-min-seconds")
+        try? FileManager.default.createDirectory(at: Integrations.supportDir, withIntermediateDirectories: true)
+        try? "\(seconds)\n".write(to: url, atomically: true, encoding: .utf8)
+    }
+
     @Published var terminalAlertsEnabled: Bool {
         didSet { UserDefaults.standard.set(terminalAlertsEnabled, forKey: "terminalAlerts") }
     }
@@ -245,6 +269,13 @@ final class NotchModel: ObservableObject {
         // Default: notch hanya melebar saat Claude bekerja / menunggu / baru selesai.
         alwaysShowUsage = defaults.object(forKey: "alwaysShowUsage") as? Bool ?? false
         terminalAlertsEnabled = defaults.object(forKey: "terminalAlerts") as? Bool ?? true
+        limitWarn = defaults.object(forKey: "limitWarn") as? Int ?? 80
+        limitCritical = defaults.object(forKey: "limitCritical") as? Int ?? 95
+        limitResetAlerts = defaults.object(forKey: "limitResetAlerts") as? Bool ?? true
+        let minSeconds = defaults.object(forKey: "terminalMinSeconds") as? Int ?? 30
+        terminalMinSeconds = minSeconds
+        showIdleWithoutNotch = defaults.object(forKey: "showIdleWithoutNotch") as? Bool ?? false
+        Self.writeTerminalMinSeconds(minSeconds)
         mediaLiveMode = defaults.string(forKey: "mediaLiveMode").flatMap(MediaLiveMode.init(rawValue:)) ?? .glance
         selectedWidget = enabledWidgets.first ?? .claude
         battery = BatteryState.read()
@@ -345,6 +376,7 @@ final class NotchModel: ObservableObject {
     // MARK: Peringatan limit
 
     private func checkLimits() {
+        limitWatcher.thresholds = [min(limitWarn, limitCritical), max(limitWarn, limitCritical)]
         var alerts: [LimitAlert] = []
         if enabledWidgets.contains(.claude), let u = officialUsage {
             alerts += limitWatcher.observe(provider: .claude, usage: u, now: now)
@@ -352,7 +384,7 @@ final class NotchModel: ObservableObject {
         if enabledWidgets.contains(.antigravity), let u = agQuota {
             alerts += limitWatcher.observe(provider: .antigravity, usage: u, now: now)
         }
-        limitQueue += alerts
+        limitQueue += alerts.filter { limitResetAlerts || $0.kind != .reset }
         showNextLimitAlert()
     }
 
@@ -368,7 +400,7 @@ final class NotchModel: ObservableObject {
         limitAlert = alert
         if soundOnClaudeDone {
             switch alert.kind {
-            case .threshold(let t): NSSound(named: t >= 95 ? "Sosumi" : "Ping")?.play()
+            case .threshold(let t): NSSound(named: t >= max(limitWarn, limitCritical) ? "Sosumi" : "Ping")?.play()
             case .reset: NSSound(named: "Hero")?.play()
             }
         }
@@ -804,7 +836,7 @@ struct NotchView: View {
     /// jadi island hanya terlihat saat ada live activity atau sedang dibuka — dan tidak saat full-screen.
     private var invisible: Bool {
         guard !model.expanded, !g.hasPhysicalNotch else { return false }
-        return compact == .none || model.fullscreenActive
+        return (compact == .none && !model.showIdleWithoutNotch) || model.fullscreenActive
     }
 
     var body: some View {
@@ -1237,20 +1269,14 @@ final class NotchPanel: NSPanel {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    var widgetItems: [NSMenuItem] = []
-    var soundItem: NSMenuItem!
-    var usageItem: NSMenuItem!
-    var mediaModeItems: [NSMenuItem] = []
+    let settings = SettingsWindowController()
+    var claudeSetupItem: NSMenuItem!
     var panel: NotchPanel!
     var model: NotchModel!
     var statusItem: NSStatusItem!
     var monitors: [Any] = []
     var collapseWork: DispatchWorkItem?
     var terminalSink: AnyCancellable?
-    var terminalItem: NSMenuItem!
-    var loginItem: NSMenuItem!
-    var claudeHookItem: NSMenuItem!
-    var terminalHookItem: NSMenuItem!
 
     func applicationWillTerminate(_ note: Notification) {
         model?.systemMedia.stop()
@@ -1275,6 +1301,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         setupStatusItem()
         migrateIntegrations()
+        showOnboardingIfNeeded()
+        if CommandLine.arguments.contains("--open-settings") { openSettings() }
 
         // `open NotchIsland.app --args --enable-login-item` mengaktifkan "Buka saat login" sekali jalan.
         if CommandLine.arguments.contains("--enable-login-item"), SMAppService.mainApp.status != .enabled {
@@ -1384,97 +1412,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         let g = model.geometry
         menu.addItem(withTitle: "\(DeviceInfo.marketingName) (\(DeviceInfo.modelIdentifier))", action: nil, keyEquivalent: "")
-        menu.addItem(withTitle: "Notch: \(Int(g.notchSize.width))×\(Int(g.notchSize.height)) pt", action: nil, keyEquivalent: "")
+        menu.addItem(withTitle: g.hasPhysicalNotch ? "Notch: \(Int(g.notchSize.width))×\(Int(g.notchSize.height)) pt" : "Tanpa notch · island virtual",
+                     action: nil, keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(.sectionHeader(title: "Widget"))
-        for kind in WidgetKind.allCases {
-            let item = NSMenuItem(title: kind.title, action: #selector(toggleWidget(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = kind.rawValue
-            item.image = NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil)
-            menu.addItem(item)
-            widgetItems.append(item)
-        }
-        soundItem = NSMenuItem(title: "Bunyi notifikasi agent & limit", action: #selector(toggleSound), keyEquivalent: "")
-        soundItem.target = self
-        menu.addItem(soundItem)
-        usageItem = NSMenuItem(title: "Selalu tampilkan usage Claude", action: #selector(toggleUsage), keyEquivalent: "")
-        usageItem.target = self
-        menu.addItem(usageItem)
-        let mediaMenu = NSMenu()
-        for mode in MediaLiveMode.allCases {
-            let item = NSMenuItem(title: mode.title, action: #selector(setMediaMode(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = mode.rawValue
-            mediaMenu.addItem(item)
-            mediaModeItems.append(item)
-        }
-        mediaMenu.delegate = self
-        let integrationMenu = NSMenu()
-        claudeHookItem = NSMenuItem(title: "Claude Code (status sesi)", action: #selector(toggleClaudeHook), keyEquivalent: "")
-        terminalHookItem = NSMenuItem(title: "Terminal zsh (command selesai)", action: #selector(toggleTerminalHook), keyEquivalent: "")
-        for item in [claudeHookItem!, terminalHookItem!] {
-            item.target = self
-            integrationMenu.addItem(item)
-        }
-        integrationMenu.delegate = self
-        let integrationItem = NSMenuItem(title: "Integrasi", action: nil, keyEquivalent: "")
-        integrationItem.submenu = integrationMenu
-        menu.addItem(integrationItem)
-        terminalItem = NSMenuItem(title: "Notifikasi command terminal", action: #selector(toggleTerminal), keyEquivalent: "")
-        terminalItem.target = self
-        menu.addItem(terminalItem)
-        loginItem = NSMenuItem(title: "Buka saat login", action: #selector(toggleLoginItem), keyEquivalent: "")
-        loginItem.target = self
-        menu.addItem(loginItem)
-        let mediaItem = NSMenuItem(title: "Live activity musik", action: nil, keyEquivalent: "")
-        mediaItem.submenu = mediaMenu
-        menu.addItem(mediaItem)
+        menu.addItem(withTitle: "Pengaturan…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        claudeSetupItem = NSMenuItem(title: "Hubungkan Claude Code…", action: #selector(openIntegrations), keyEquivalent: "")
+        claudeSetupItem.target = self
+        menu.addItem(claudeSetupItem)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Tes notifikasi charger", action: #selector(testChargeAlert), keyEquivalent: "t").target = self
-        menu.addItem(withTitle: "Tes peringatan limit", action: #selector(testLimitAlert), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "Tes notifikasi terminal", action: #selector(testTerminalAlert), keyEquivalent: "").target = self
+        let tests = NSMenu()
+        tests.addItem(withTitle: "Charger", action: #selector(testChargeAlert), keyEquivalent: "").target = self
+        tests.addItem(withTitle: "Peringatan limit", action: #selector(testLimitAlert), keyEquivalent: "").target = self
+        tests.addItem(withTitle: "Command terminal", action: #selector(testTerminalAlert), keyEquivalent: "").target = self
+        let testItem = NSMenuItem(title: "Tes notifikasi", action: nil, keyEquivalent: "")
+        testItem.submenu = tests
+        menu.addItem(testItem)
         menu.addItem(withTitle: "Deteksi ulang layar", action: #selector(redetect), keyEquivalent: "r").target = self
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Keluar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.delegate = self
         statusItem.menu = menu
     }
 
-    // Centang widget & opsi bunyi diperbarui setiap menu dibuka.
     func menuNeedsUpdate(_ menu: NSMenu) {
-        for item in widgetItems {
-            let kind = (item.representedObject as? String).flatMap(WidgetKind.init(rawValue:))
-            item.state = kind.map(model.enabledWidgets.contains) == true ? .on : .off
-        }
-        soundItem.state = model.soundOnClaudeDone ? .on : .off
-        usageItem.state = model.alwaysShowUsage ? .on : .off
-        terminalItem.state = model.terminalAlertsEnabled ? .on : .off
-        claudeHookItem.state = Integrations.claudeHookStatus() == .notInstalled ? .off : .on
-        terminalHookItem.state = Integrations.isTerminalHookInstalled() ? .on : .off
-        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        for item in mediaModeItems {
-            item.state = item.representedObject as? String == model.mediaLiveMode.rawValue ? .on : .off
-        }
+        claudeSetupItem.isHidden = Integrations.claudeHookStatus() != .notInstalled
     }
 
-    @objc func setMediaMode(_ sender: NSMenuItem) {
-        guard let mode = (sender.representedObject as? String).flatMap(MediaLiveMode.init(rawValue:)) else { return }
-        model.mediaLiveMode = mode
+    // MARK: Pengaturan
+
+    private var settingsActions: SettingsActions {
+        SettingsActions(
+            toggleClaudeHook: { [weak self] in self?.toggleClaudeHook() },
+            toggleTerminalHook: { [weak self] in self?.toggleTerminalHook() },
+            toggleLoginItem: { [weak self] in self?.toggleLoginItem() },
+            relayout: { [weak self] in self?.relayout() },
+            testCharge: { [weak self] in self?.model.showChargeAlert() },
+            testLimit: { [weak self] in self?.model.testLimitAlerts() },
+            testTerminal: { [weak self] in self?.model.testTerminalAlerts() })
     }
 
-    @objc func toggleUsage() { model.alwaysShowUsage.toggle() }
+    @objc func openSettings() { settings.show(model: model, actions: settingsActions) }
+    @objc func openIntegrations() { settings.show(model: model, actions: settingsActions, section: .integrations) }
 
-    @objc func toggleWidget(_ sender: NSMenuItem) {
-        guard let kind = (sender.representedObject as? String).flatMap(WidgetKind.init(rawValue:)) else { return }
-        model.toggleWidget(kind)
+    /// Pertama kali dibuka (mis. dari DMG): langsung tunjukkan cara menghubungkan Claude Code.
+    func showOnboardingIfNeeded() {
+        let key = "onboardingShown"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        if Integrations.claudeHookStatus() == .notInstalled { openIntegrations() }
     }
-
-    @objc func toggleSound() { model.soundOnClaudeDone.toggle() }
     @objc func redetect() { relayout() }
     @objc func testChargeAlert() { model.showChargeAlert() }
     @objc func testLimitAlert() { model.testLimitAlerts() }
     @objc func testTerminalAlert() { model.testTerminalAlerts() }
-    @objc func toggleTerminal() { model.terminalAlertsEnabled.toggle() }
 
     // MARK: Integrasi (hook)
 

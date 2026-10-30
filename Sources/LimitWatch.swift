@@ -18,7 +18,8 @@ struct LimitAlert: Equatable {
 /// Mengamati jendela limit (Claude, Antigravity) dan menghasilkan peringatan
 /// saat melewati ambang atau reset, plus memperkirakan kapan limit habis.
 final class LimitWatcher {
-    static let thresholds = [80, 95]
+    /// Ambang peringatan (persen), diatur di Pengaturan › Notifikasi.
+    var thresholds = [80, 95]
 
     private struct Sample { let time: Date; let percent: Double }
 
@@ -39,7 +40,7 @@ final class LimitWatcher {
             guard let prev = lastPercent[key] else { continue }
 
             let cycle = w.resetsAt.map { String(Int($0.timeIntervalSince1970 / 60)) } ?? "-"
-            for t in Self.thresholds where prev < Double(t) && p >= Double(t) {
+            for t in thresholds where prev < Double(t) && p >= Double(t) {
                 guard fired.insert("\(key)|\(cycle)|\(t)").inserted else { continue }
                 alerts.append(LimitAlert(provider: provider, title: w.title, percent: p,
                                          kind: .threshold(t), eta: projection(provider: provider, window: w)))

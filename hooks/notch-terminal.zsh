@@ -15,7 +15,11 @@ _notch_precmd() {
   local cmd="$_notch_cmd"
   _notch_cmd=""
   local -i dur=$(( EPOCHREALTIME - _notch_start ))   # -i memotong ke detik bulat
-  (( dur < ${NOTCH_MIN_SECONDS:-30} )) && return
+  # Ambang: env NOTCH_MIN_SECONDS, atau Pengaturan › Notifikasi di app, atau 30 detik.
+  local min=${NOTCH_MIN_SECONDS:-}
+  [[ -z "$min" && -r "$HOME/Library/Application Support/NotchIsland/terminal-min-seconds" ]] \
+    && min=$(<"$HOME/Library/Application Support/NotchIsland/terminal-min-seconds")
+  (( dur < ${min:-30} )) && return
   (( exit_code == 130 )) && return   # dihentikan sendiri dengan Ctrl-C
   # Program interaktif bukan "pekerjaan" yang ditunggu.
   case "${${cmd## #}%% *}" in

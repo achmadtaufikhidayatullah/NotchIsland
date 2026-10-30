@@ -31,7 +31,7 @@ Karena app ini belum dinotarisasi Apple, macOS akan menolak saat pertama dibuka:
       xattr -dr com.apple.quarantine /Applications/NotchIsland.app
 
 Setelah terbuka, ikon kapsul muncul di menu bar.
-Hubungkan Claude Code lewat: ikon kapsul › Integrasi.
+Hubungkan Claude Code lewat: ikon kapsul › Pengaturan… › Integrasi.
 
 Source & panduan lengkap: https://github.com/achmadtaufikhidayatullah/NotchIsland
 TXT
