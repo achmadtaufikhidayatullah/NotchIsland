@@ -2,6 +2,8 @@
 
 <h1 align="center">NotchIsland</h1>
 
+<p align="center"><a href="https://achmadtaufikhidayatullah.github.io/NotchIsland/">Situs</a> · <a href="https://github.com/achmadtaufikhidayatullah/NotchIsland/releases/latest/download/NotchIsland.dmg">Download</a> · <a href="#instalasi">Instalasi</a></p>
+
 Dynamic Island untuk Mac. App ini mengubah notch MacBook menjadi pulau hidup yang menampilkan aktivitas **Claude Code**, **Antigravity**, media yang sedang diputar, peringatan limit, dan command terminal yang selesai.
 
 App otomatis mendeteksi device dan ukuran notch, jadi posisinya presisi. Di layar tanpa notch (monitor eksternal atau Mac lama), app membuat "pulau virtual" setinggi menu bar.
@@ -254,6 +256,7 @@ NotchIsland **tidak mengirim data ke server mana pun** dan tidak menyimpan promp
 - Build **universal** (Apple Silicon + Intel), lalu membuat `dist/NotchIsland-1.0.0.dmg` dan salinan bernama tetap `dist/NotchIsland.dmg`.
 - Buat rilis baru di GitHub dengan tag `v1.0.0`, lalu unggah **`dist/NotchIsland.dmg`**. Link download di README dan landing page selalu mengarah ke rilis terbaru lewat nama file ini.
 - Untuk pengembangan sehari-hari, `./build.sh` cukup membangun untuk arsitektur Mac-mu saja (lebih cepat). Build universal: `ARCHS="arm64 x86_64" ./build.sh`.
+- **Landing page** ada di `docs/index.html` (statis, tanpa build). Aktifkan sekali di GitHub: **Settings › Pages › Build and deployment › Deploy from a branch** → `main` / `/docs`. Situs akan tampil di `https://achmadtaufikhidayatullah.github.io/NotchIsland/`. Tambahkan `?state=0`–`6` di URL untuk membekukan demo notch (berguna untuk screenshot).
 - App ditandatangani ad-hoc dan belum dinotarisasi. Supaya bisa dibuka dengan dobel klik tanpa peringatan Gatekeeper, diperlukan sertifikat Developer ID dari Apple Developer Program.
 
 ---
@@ -289,7 +292,8 @@ NotchIsland/
 ├── ThirdParty/zstd/        # decoder zstd v1.5.7 (source resmi, BSD)
 ├── zstd-bridge.h           # header zstd untuk Swift
 ├── build.sh                # build app (arsitektur Mac ini / universal)
-└── release.sh              # build universal + DMG
+├── release.sh              # build universal + DMG
+└── docs/                   # landing page (GitHub Pages)
 ```
 
 ---
