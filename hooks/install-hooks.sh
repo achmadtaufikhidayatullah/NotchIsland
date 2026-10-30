@@ -22,7 +22,7 @@ except FileNotFoundError:
     settings = {}
 
 command = f'/usr/bin/python3 "{hook_path}"'
-events = ["UserPromptSubmit", "PreToolUse", "Notification", "Stop", "SessionEnd"]
+events = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "Notification", "Stop", "SessionEnd"]
 hooks = settings.setdefault("hooks", {})
 
 for event in events:
@@ -34,7 +34,7 @@ for event in events:
             groups.append(g)
     if mode != "--uninstall":
         entry = {"hooks": [{"type": "command", "command": command, "timeout": 5}]}
-        if event == "PreToolUse":
+        if event in ("PreToolUse", "PostToolUse"):
             entry["matcher"] = "*"
         groups.append(entry)
     if groups:

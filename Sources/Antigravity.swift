@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import SwiftUI
 
 // MARK: - Aktivitas (dari transcript Antigravity)
@@ -12,6 +12,8 @@ enum AgentState: String { case idle, busy, waiting }
 struct AgentActivity: Equatable {
     var state: AgentState
     var waitingFor: String?
+    /// Apa yang diminta saat menunggu: isi pertanyaan atau nama file yang perlu disetujui.
+    var waitingDetail: String?
     var busySince: Date?
     var lastWrite: Date
     var conversation: String
@@ -21,7 +23,7 @@ struct AgentActivity: Equatable {
 
 final class AntigravityMonitor {
     private var cacheKey = ""
-    private var parsed: (state: AgentState, waitingFor: String?) = (.idle, nil)
+    private var parsed: (state: AgentState, waitingFor: String?, detail: String?) = (.idle, nil, nil)
     private var busySince: Date?
     private let stallAfter: TimeInterval = 10 * 60
 
@@ -48,7 +50,8 @@ final class AntigravityMonitor {
         // .../brain/<conversation>/.system_generated/logs/transcript.jsonl
         let conversation = url.deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().lastPathComponent
-        return AgentActivity(state: state, waitingFor: parsed.waitingFor, busySince: busySince,
+        return AgentActivity(state: state, waitingFor: parsed.waitingFor, waitingDetail: parsed.detail,
+                             busySince: busySince,
                              lastWrite: mtime, conversation: conversation, stalled: stalled)
     }
 
@@ -76,35 +79,45 @@ final class AntigravityMonitor {
 
     /// Dibaca dari baris terbawah ke atas sampai USER_INPUT terakhir.
     /// PLANNER_RESPONSE tanpa tool call = giliran model selesai.
-    static func parseState(_ data: Data) -> (state: AgentState, waitingFor: String?) {
+    static func parseState(_ data: Data) -> (state: AgentState, waitingFor: String?, detail: String?) {
         var turnOver = false
         for line in data.split(separator: UInt8(ascii: "\n")).reversed() {
             guard let json = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
                   let type = json["type"] as? String else { continue }   // baris pertama bisa terpotong
             switch type {
             case "USER_INPUT":
-                return (turnOver ? .idle : .busy, nil)
+                return (turnOver ? .idle : .busy, nil, nil)
             case "PLANNER_RESPONSE":
                 let calls = json["tool_calls"] as? [[String: Any]] ?? []
                 if calls.isEmpty { turnOver = true; continue }
                 for call in calls {
                     let name = call["name"] as? String ?? ""
-                    if name.contains("ask_question") { return (.waiting, "Pertanyaan") }
+                    let args = call["arguments"] as? [String: Any] ?? [:]
+                    if name.contains("ask_question") { return (.waiting, "Pertanyaan", detail(args)) }
                     if name.contains("replace_file_content") || name.contains("write_to_file"),
-                       let args = call["arguments"] as? [String: Any],
                        let meta = args["ArtifactMetadata"] as? [String: Any],
                        meta["RequestFeedback"] as? Bool == true {
-                        return (.waiting, "Persetujuan")
+                        return (.waiting, "Persetujuan", detail(args))
                     }
                 }
-                if !turnOver { return (.busy, nil) }
+                if !turnOver { return (.busy, nil, nil) }
             case "EPHEMERAL_MESSAGE", "CONVERSATION_HISTORY", "KNOWLEDGE_ARTIFACTS", "CHECKPOINT":
                 continue
             default:
-                if !turnOver { return (.busy, nil) }   // respons tool
+                if !turnOver { return (.busy, nil, nil) }   // respons tool
             }
         }
-        return (.idle, nil)
+        return (.idle, nil, nil)
+    }
+
+    /// Ringkasan argumen tool: pertanyaan, file target, atau command.
+    private static func detail(_ args: [String: Any]) -> String? {
+        for key in ["Question", "question", "TargetFile", "CommandLine", "Message", "message"] {
+            guard let value = args[key] as? String, !value.isEmpty else { continue }
+            let text = key == "TargetFile" ? URL(fileURLWithPath: value).lastPathComponent : value
+            return String(text.split(separator: "\n").first ?? "").prefix(120).description
+        }
+        return nil
     }
 }
 
@@ -265,6 +278,22 @@ enum AntigravityQuota {
     }
 }
 
+// MARK: - Membuka app
+
+enum AntigravityApp {
+    /// Bawa Antigravity ke depan (atau buka bila belum jalan).
+    static func open() {
+        let ws = NSWorkspace.shared
+        let running = ws.runningApplications.first {
+            $0.bundleURL?.lastPathComponent.hasPrefix("Antigravity") == true
+        }
+        let candidates = [running?.bundleURL, URL(fileURLWithPath: "/Applications/Antigravity IDE.app"),
+                          URL(fileURLWithPath: "/Applications/Antigravity.app")].compactMap { $0 }
+        guard let url = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else { return }
+        ws.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+    }
+}
+
 // MARK: - UI
 
 enum AntigravityStyle {
@@ -295,6 +324,7 @@ struct AntigravityCard: View {
     let activity: AgentActivity?
     let running: Bool
     let now: Date
+    var onOpen: (() -> Void)? = nil
 
     private var status: (String, Color) {
         switch activity?.state {
@@ -321,6 +351,9 @@ struct AntigravityCard: View {
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundStyle(Palette.secondary)
                 }
+                if let onOpen {
+                    OpenAppButton(help: "Buka Antigravity", action: onOpen)
+                }
             }
             Text(detail)
                 .font(.system(size: 11))
@@ -343,7 +376,9 @@ struct AntigravityCard: View {
     private var detail: String {
         guard let a = activity else { return "Belum ada percakapan Antigravity di Mac ini." }
         switch a.state {
-        case .waiting: return "Agent menunggu \(a.waitingFor?.lowercased() ?? "tindakanmu")."
+        case .waiting:
+            let what = a.waitingFor?.lowercased() ?? "tindakanmu"
+            return a.waitingDetail.map { "Agent menunggu \(what): \($0)" } ?? "Agent menunggu \(what)."
         case .busy: return "Agent sedang mengerjakan prompt…"
         case .idle: return a.stalled ? "Tidak ada aktivitas baru — mungkin terhenti." : "Prompt terakhir sudah selesai."
         }

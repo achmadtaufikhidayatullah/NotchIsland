@@ -17,13 +17,15 @@ App otomatis mendeteksi device dan ukuran notch, jadi posisinya presisi. Di laya
 | Kejadian | Tampilan | Bunyi |
 |---|---|---|
 | Claude / Antigravity sedang bekerja | logo berputar/berdenyut + % limit + ring | – |
-| Agent menunggu izin | logo & ring oranye berdenyut | – |
+| Agent menunggu izin | logo oranye · apa yang diminta, mis. `Bash` · `npm install axios` ✋ | – |
 | Prompt selesai | ✓ hijau "Selesai" (4 dtk) | Glass |
 | Limit melewati 80% / 95% | nama jendela · "habis ±15.20" · % + ring | Ping / Sosumi |
 | Limit reset | "Limit reset" ↻ hijau | Hero |
 | Command terminal ≥30 dtk selesai | ✓ / ✗ · command · durasi (klik → buka terminal) | Tink / Basso |
 | Media mulai diputar / berganti | thumbnail + equalizer (4 dtk) | – |
 | Charger dicolok | ⚡ "Mengisi Daya" + baterai | – |
+
+**Klik** sisi kiri/kanan notch saat live activity agent atau terminal tampil untuk langsung membuka app-nya (Claude Desktop / terminal tempat Claude berjalan, Antigravity, atau terminal command). Arahkan kursor ke notch untuk membuka island.
 
 Saat tidak ada kejadian, notch kembali hitam polos seperti bawaan Mac.
 
@@ -169,7 +171,8 @@ Menulis status sesi (bekerja / menunggu / selesai, tool aktif, task list) yang d
 ```
 
 - Mengubah `~/.claude/settings.json` (backup: `settings.json.bak-notchisland`)
-- Event: `UserPromptSubmit`, `PreToolUse`, `Notification`, `Stop`, `SessionEnd`
+- Event: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SessionEnd`
+- Sudah pernah memasang versi lama? Jalankan ulang `./hooks/install-hooks.sh` untuk menambah event baru
 - Berlaku untuk Claude Code di terminal maupun di aplikasi Claude Desktop (tab Code)
 - Saat ini memerlukan `/usr/bin/python3`
 
@@ -278,6 +281,12 @@ NotchIsland/
 ├── zstd-bridge.h           # header zstd untuk Swift
 └── build.sh
 ```
+
+---
+
+## Lisensi
+
+[MIT](LICENSE)
 
 ---
 

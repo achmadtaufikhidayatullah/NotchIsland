@@ -27,6 +27,18 @@ def tool_detail(name, inp):
     return ""
 
 
+def tool_target(name, inp):
+    """Apa persisnya yang akan dilakukan tool — ditampilkan saat Claude minta izin."""
+    if not isinstance(inp, dict):
+        return ""
+    if isinstance(inp.get("command"), str):
+        return inp["command"].strip().splitlines()[0][:120] if inp["command"].strip() else ""
+    for key in ("file_path", "notebook_path", "path"):
+        if isinstance(inp.get(key), str) and inp[key]:
+            return os.path.basename(inp[key].rstrip("/")) or inp[key]
+    return tool_detail(name, inp)
+
+
 def apply_plan(state, name, inp):
     """Lacak progress dari task list (TodoWrite di CLI, update_plan di aplikasi desktop)."""
     if not isinstance(inp, dict):
@@ -86,6 +98,12 @@ def main():
                      updated_at=now)
         if data.get("session_title"):
             state["title"] = data["session_title"]
+        # App tempat Claude berjalan (Claude Desktop, VS Code, Terminal, …) — untuk klik dari notch.
+        bundle = os.environ.get("__CFBundleIdentifier")
+        if bundle:
+            state["app_bundle"] = bundle
+        if os.environ.get("TERM_PROGRAM"):
+            state["term_program"] = os.environ["TERM_PROGRAM"]
 
         if event == "UserPromptSubmit":
             state.update(state="working", prompt=(data.get("prompt") or "").strip()[:200],
@@ -95,11 +113,20 @@ def main():
             name = data.get("tool_name") or ""
             inp = data.get("tool_input")
             state.update(state="working", tool=name.split("__")[-1], tool_detail=tool_detail(name, inp),
-                         tool_count=int(state.get("tool_count") or 0) + 1, message="")
+                         tool_target=tool_target(name, inp),
+                         tool_count=int(state.get("tool_count") or 0) + 1, message="", waiting_kind=None)
             state.setdefault("started_at", now)
             apply_plan(state, name, inp)
+        elif event == "PostToolUse":
+            # Izin sudah diberikan dan tool selesai → kembali bekerja.
+            if state.get("state") == "waiting":
+                state.update(state="working", message="", waiting_kind=None)
         elif event == "Notification":
-            state.update(state="waiting", message=(data.get("message") or "")[:120])
+            msg = (data.get("message") or "")[:120]
+            kind = data.get("notification_type") or ""
+            # permission_prompt = minta izin tool; idle_prompt = menunggu balasan pengguna.
+            waiting_kind = "permission" if "permission" in kind or "permission" in msg.lower() else "input"
+            state.update(state="waiting", message=msg, waiting_kind=waiting_kind)
         elif event == "Stop":
             state.update(state="done", finished_at=now, tool=None, tool_detail="")
 

@@ -18,11 +18,34 @@ struct ClaudeSession: Decodable, Equatable {
     var plan: [String]?
     var message: String?
     var transcript_path: String?
+    var app_bundle: String?
+    var term_program: String?
+    var tool_target: String?
+    var waiting_kind: String?
 
     var isWorking: Bool { state == "working" }
     var isWaiting: Bool { state == "waiting" }
     var isActive: Bool { isWorking || isWaiting }
     var displayName: String { title ?? project ?? "Claude" }
+
+    /// Apa yang ditunggu: "Bash · npm install axios" untuk izin tool, atau balasan pengguna.
+    var waitingText: String {
+        if waiting_kind == "input" { return "Menunggu balasanmu" }
+        let target = (tool_target?.isEmpty == false ? tool_target : tool_detail) ?? ""
+        guard let tool, !tool.isEmpty else { return message?.isEmpty == false ? message! : "Butuh izin" }
+        return target.isEmpty ? tool : "\(tool) · \(target)"
+    }
+
+    /// App tempat sesi berjalan (Claude Desktop, VS Code, Terminal, …).
+    var appBundleID: String? {
+        if let app_bundle, !app_bundle.isEmpty { return app_bundle }
+        switch term_program {
+        case "Apple_Terminal": return "com.apple.Terminal"
+        case "iTerm.app": return "com.googlecode.iterm2"
+        case "vscode": return "com.microsoft.VSCode"
+        default: return nil
+        }
+    }
 
     var planProgress: (done: Int, total: Int)? {
         guard let plan, !plan.isEmpty else { return nil }
@@ -246,11 +269,30 @@ struct ClaudeProgressBar: View {
     }
 }
 
+/// Tombol kecil "buka app" di pojok kartu.
+struct OpenAppButton: View {
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.up.forward.app")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Palette.secondary)
+                .frame(width: 20, height: 20)
+                .background(Circle().fill(Color.white.opacity(0.08)))
+        }
+        .buttonStyle(PressScaleStyle())
+        .help(help)
+    }
+}
+
 struct ClaudeCard: View {
     let session: ClaudeSession?
     let otherActive: Int
     let usage: ClaudeUsage?
     let now: Date
+    var onOpen: (() -> Void)? = nil
 
     private var statusText: String {
         guard let s = session else { return "Tidak ada sesi" }
@@ -280,7 +322,7 @@ struct ClaudeCard: View {
 
     private var activityLine: String {
         guard let s = session else { return "Hook aktif · menunggu prompt berikutnya" }
-        if s.isWaiting, let m = s.message, !m.isEmpty { return m }
+        if s.isWaiting { return "Izin: " + s.waitingText }
         if s.isWorking, let tool = s.tool {
             return [tool, s.tool_detail].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         }
@@ -318,6 +360,9 @@ struct ClaudeCard: View {
                     Text(ClaudeStyle.duration(e))
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundStyle(Palette.secondary)
+                }
+                if let onOpen, session != nil {
+                    OpenAppButton(help: "Buka sesi Claude", action: onOpen)
                 }
             }
             Text(session?.prompt?.isEmpty == false ? session!.prompt! : "Kirim prompt di Claude Code untuk mulai memantau.")

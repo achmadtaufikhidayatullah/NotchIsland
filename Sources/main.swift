@@ -289,6 +289,35 @@ final class NotchModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.showNextTerminalAlert() }
     }
 
+    // MARK: Membuka app agent
+
+    func openAgent(_ kind: WidgetKind) {
+        switch kind {
+        case .antigravity:
+            AntigravityApp.open()
+        default:
+            // App tempat sesi berjalan; Claude Desktop sebagai cadangan.
+            let id = primaryClaude?.appBundleID ?? "com.anthropic.claudefordesktop"
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            }
+        }
+    }
+
+    /// Lebar sayap live activity yang bisa diklik (kiri/kanan notch), nil bila tidak ada.
+    /// Mengikuti lebar tampilan supaya ikon menu bar di luar sayap tetap bisa diklik.
+    var clickableWing: CGFloat? {
+        if terminalAlert != nil { return 140 }
+        if limitAlert != nil || chargeAlert { return nil }
+        let claudeOn = enabledWidgets.contains(.claude), agOn = enabledWidgets.contains(.antigravity)
+        if (claudeOn && primaryClaude?.isWaiting == true) || (agOn && agActivity?.state == .waiting) { return 130 }
+        if (claudeOn && (claudeFlashDone || primaryClaude?.isWorking == true))
+            || (agOn && (agFlashDone || agActivity?.state == .busy)) { return 72 }
+        return nil
+    }
+
+    var hasClickableCompact: Bool { clickableWing != nil }
+
     func openTerminalAlert() {
         guard let event = terminalAlert else { return }
         TerminalWatcher.open(event)
@@ -744,6 +773,7 @@ struct NotchView: View {
         case .none: return 0
         case .charge: return 104
         case .limit: return 116
+        case .waiting: return 130
         case .terminal: return 140
         case .media: return 64
         default: return compactAgent.flatMap(headline) != nil ? 72 : 64
@@ -829,8 +859,14 @@ struct NotchView: View {
             } else {
                 AntigravityMark(size: 14, active: working, tint: waiting ? .orange : nil)
             }
-            Spacer()
-            if let window = headline(agent) {
+            if waiting {
+                waitingCompact(agent)
+            } else {
+                Spacer()
+            }
+            if waiting {
+                EmptyView()
+            } else if let window = headline(agent) {
                 // Arc berputar saat bekerja, ring oranye berdenyut saat menunggu.
                 let p = window.percent(at: model.now)
                 HStack(spacing: 6) {
@@ -858,6 +894,37 @@ struct NotchView: View {
         }
         .padding(.horizontal, topR + 14)
         .frame(height: g.notchSize.height)
+        .contentShape(Rectangle())
+        .onTapGesture { model.openAgent(agent == .claude ? .claude : .antigravity) }
+        .help(agent == .claude ? "Klik untuk membuka sesi Claude" : "Klik untuk membuka Antigravity")
+    }
+
+    /// Saat agent minta izin: apa yang diminta (kiri: tool/jenis, kanan: detail).
+    @ViewBuilder
+    private func waitingCompact(_ agent: Agent) -> some View {
+        let claude = model.primaryClaude
+        let label = agent == .claude
+            ? (claude?.waiting_kind == "input" ? "Claude" : (claude?.tool ?? "Izin"))
+            : (model.agActivity?.waitingFor ?? "Menunggu")
+        let detail = agent == .claude
+            ? (claude?.waiting_kind == "input" ? "menunggu balasanmu" : (claude?.tool_target ?? claude?.tool_detail ?? ""))
+            : (model.agActivity?.waitingDetail ?? "")
+        Text(label)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.orange)
+            .lineLimit(1)
+            .frame(maxWidth: wing - 40, alignment: .leading)   // tetap di sisi kiri notch fisik
+        Spacer(minLength: 8)
+        HStack(spacing: 6) {
+            Text(detail)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Image(systemName: "hand.raised.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.orange)
+        }
+        .frame(maxWidth: wing - 20, alignment: .trailing)
     }
 
     // Peringatan limit: tanda provider + nama jendela di kiri, persen/perkiraan atau reset di kanan.
@@ -1006,7 +1073,8 @@ struct NotchView: View {
                 ClaudeCard(session: model.primaryClaude,
                            otherActive: model.activeClaudeCount - (model.primaryClaude?.isActive == true ? 1 : 0),
                            usage: model.claudeUsage,
-                           now: model.now)
+                           now: model.now,
+                           onOpen: { model.openAgent(.claude) })
             }
         case .antigravity:
             HStack(spacing: 10) {
@@ -1016,7 +1084,8 @@ struct NotchView: View {
                                         "Kuota terbaca saat Antigravity terbuka."),
                           now: model.now, grouped: true, eta: { model.limitETA(.antigravity, $0) })
                     .frame(width: 236)
-                AntigravityCard(activity: model.agActivity, running: model.agRunning, now: model.now)
+                AntigravityCard(activity: model.agActivity, running: model.agRunning, now: model.now,
+                                onOpen: { model.openAgent(.antigravity) })
             }
         case .media:
             MediaCard(nowPlaying: model.nowPlaying, deniedApp: model.mediaDenied, now: model.now,
@@ -1179,8 +1248,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.contentView = host
         panel.orderFrontRegardless()
         // Setelah notifikasi terminal hilang, klik kembali tembus ke menu bar.
-        terminalSink = model.$terminalAlert.sink { [weak self] alert in
-            guard alert == nil, let self, !self.model.expanded else { return }
+        // Setelah live activity hilang, klik kembali tembus ke menu bar (dicek tiap detik).
+        terminalSink = model.$now.sink { [weak self] _ in
+            guard let self, !self.model.expanded, !self.model.hasClickableCompact else { return }
             self.panel.ignoresMouseEvents = true
         }
 
@@ -1231,8 +1301,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                   width: es.width, height: es.height)
         let dragging = NSEvent.pressedMouseButtons & 1 != 0
 
-        if !model.expanded, model.terminalAlert != nil {
-            panel.ignoresMouseEvents = !g.notchRect.insetBy(dx: -150, dy: -4).contains(p)
+        if !model.expanded, model.terminalAlert != nil, let wing = model.clickableWing {
+            panel.ignoresMouseEvents = !g.notchRect.insetBy(dx: -(wing + 6), dy: -4).contains(p)
+            return
+        }
+        // Live activity agent: hover di notch tetap membuka island; sayap kiri/kanan bisa diklik.
+        if !model.expanded, let wing = model.clickableWing, !hotZone.contains(p) {
+            panel.ignoresMouseEvents = !g.notchRect.insetBy(dx: -(wing + 6), dy: -4).contains(p)
             return
         }
 
