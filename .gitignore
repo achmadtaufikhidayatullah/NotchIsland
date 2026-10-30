@@ -1,0 +1,5 @@
+# Hasil build
+build/
+
+# macOS
+.DS_Store
