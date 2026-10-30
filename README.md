@@ -31,6 +31,16 @@ App otomatis mendeteksi device dan ukuran notch, jadi posisinya presisi. Di laya
 
 Saat tidak ada kejadian, notch kembali hitam polos seperti bawaan Mac.
 
+### Mode sisi layar (opsional)
+
+Pengaturan › Tampilan › Posisi › **Sisi kanan / kiri layar**: island menjadi tab vertikal yang menempel di tepi layar, cocok untuk Mac tanpa notch atau bila tidak ingin ada apa pun di tengah atas.
+
+- Satu ring per agent (Claude, Antigravity): logo di tengah, persen limit di bawah. Arc berputar saat bekerja, oranye berdenyut saat menunggu, ✓ saat selesai.
+- **Hover** tab → kartu detail di sampingnya (limit, sesi aktif, kuota Antigravity, musik). **Klik** ring → buka app-nya.
+- Notifikasi (terminal, limit, charger, agent selesai/minta izin, lagu baru) muncul sebagai kartu kecil di samping tab dan bisa diklik.
+- **⌥ Option + seret** tab untuk menggesernya naik-turun; posisinya diingat.
+- **Mode mini**: tab mengecil menjadi garis tipis selama tidak ada aktivitas.
+
 ### Island terbuka (arahkan kursor ke notch)
 
 Tab widget ada di kiri notch. Jam dan baterai ada di kanan.
@@ -198,7 +208,7 @@ Jendela **Pengaturan**:
 
 | Bagian | Isi |
 |---|---|
-| **Tampilan** | Layar (otomatis ke layar ber-notch / selalu layar menu bar), info notch terdeteksi, tampilkan island saat diam di layar tanpa notch, selalu tampilkan ring usage Claude |
+| **Tampilan** | Posisi (tengah atas / sisi kanan / sisi kiri, mode mini), layar (otomatis ke layar ber-notch / selalu layar menu bar), info notch terdeteksi, tampilkan island saat diam di layar tanpa notch, selalu tampilkan ring usage Claude |
 | **Widget** | Nyala/mati widget (Claude, Antigravity, Sedang Diputar, Jam & Kontrol, Folder), mode live activity musik |
 | **Notifikasi** | Bunyi, ambang peringatan limit (default 80% & 95%), peringatan reset, notifikasi command terminal & durasi minimalnya, tombol tes |
 | **Integrasi** | Hubungkan/lepas Claude Code dan Terminal (zsh), dengan konfirmasi & backup |

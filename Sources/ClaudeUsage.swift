@@ -251,6 +251,16 @@ struct UsageTile<Icon: View>: View {
     let now: Date
     /// Judul berbentuk "Grup · Jendela" ditampilkan per grup, semua jendela dalam bar ringkas.
     var grouped = false
+    /// Tinggi yang pas untuk isi tile (tanpa ruang kosong bila hanya ada satu jendela limit).
+    static func idealHeight(_ usage: OfficialUsage?, grouped: Bool = false) -> CGFloat {
+        guard let usage, !usage.windows.isEmpty else { return 78 }
+        if grouped {
+            let groups = Set(usage.windows.map { $0.title.components(separatedBy: " · ").first ?? "" }).count
+            return 46 + CGFloat(groups) * 34
+        }
+        return 46 + CGFloat(min(2, usage.windows.count)) * 27
+    }
+
     /// Perkiraan limit habis per jendela; bila ada, menggantikan teks reset.
     var eta: ((LimitWindow) -> Date?)? = nil
 

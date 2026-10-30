@@ -192,6 +192,14 @@ final class NotchModel: ObservableObject {
         }
     }
     // Pengaturan › Tampilan
+    @Published var placement: Placement { didSet { UserDefaults.standard.set(placement.rawValue, forKey: "placement") } }
+    /// Posisi tab sisi sepanjang tepi: 0 = atas, 1 = bawah (digeser dengan ⌥ + drag).
+    @Published var sideFraction: Double { didSet { UserDefaults.standard.set(sideFraction, forKey: "sideFraction") } }
+    @Published var sideMini: Bool { didSet { UserDefaults.standard.set(sideMini, forKey: "sideMini") } }
+    /// Kursor di atas tab/kartu sisi → kartu detail terbuka.
+    @Published var sideHover = false
+    /// Ring yang terakhir ditunjuk kursor (kartu detail menampilkan agent ini).
+    @Published var sideFocus: WidgetKind?
     @Published var showIdleWithoutNotch: Bool {
         didSet { UserDefaults.standard.set(showIdleWithoutNotch, forKey: "showIdleWithoutNotch") }
     }
@@ -275,6 +283,9 @@ final class NotchModel: ObservableObject {
         let minSeconds = defaults.object(forKey: "terminalMinSeconds") as? Int ?? 30
         terminalMinSeconds = minSeconds
         showIdleWithoutNotch = defaults.object(forKey: "showIdleWithoutNotch") as? Bool ?? false
+        placement = defaults.string(forKey: "placement").flatMap(Placement.init(rawValue:)) ?? .top
+        sideFraction = defaults.object(forKey: "sideFraction") as? Double ?? 0.3
+        sideMini = defaults.object(forKey: "sideMini") as? Bool ?? false
         Self.writeTerminalMinSeconds(minSeconds)
         mediaLiveMode = defaults.string(forKey: "mediaLiveMode").flatMap(MediaLiveMode.init(rawValue:)) ?? .glance
         selectedWidget = enabledWidgets.first ?? .claude
@@ -1270,6 +1281,12 @@ final class NotchPanel: NSPanel {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let settings = SettingsWindowController()
+    var sideTabPanel: NotchPanel!
+    var sideCardPanel: NotchPanel!
+    var sideSink: AnyCancellable?
+    var sideCollapseWork: DispatchWorkItem?
+    var sideDragging = false
+    let sideMetrics = SideCardMetrics()
     var claudeSetupItem: NSMenuItem!
     var panel: NotchPanel!
     var model: NotchModel!
@@ -1292,6 +1309,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         host.autoresizingMask = [.width, .height]
         panel.contentView = host
         panel.orderFrontRegardless()
+        setupSidePanels()
         // Setelah notifikasi terminal hilang, klik kembali tembus ke menu bar.
         // Setelah live activity hilang, klik kembali tembus ke menu bar (dicek tiap detik).
         terminalSink = model.$now.sink { [weak self] _ in
@@ -1338,6 +1356,122 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             model.geometry = g
             panel.setFrame(panelFrame(), display: true)
         }
+        layoutSide()
+    }
+
+    // MARK: Mode sisi layar
+
+    func setupSidePanels() {
+        sideTabPanel = NotchPanel(frame: CGRect(x: 0, y: 0, width: 60, height: 100))
+        sideTabPanel.contentView = FirstMouseHostingView(rootView: SideTabView(model: model, edge: .right))
+        sideCardPanel = NotchPanel(frame: CGRect(x: 0, y: 0, width: SideCardView.width, height: SideCardView.maxHeight))
+        sideCardPanel.contentView = FirstMouseHostingView(rootView: makeSideCard(edge: .right))
+        // Perubahan model (posisi, aktivitas, hover, data) → atur ulang ukuran & posisi panel.
+        sideSink = model.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.layoutSide() }
+        }
+        layoutSide()
+    }
+
+    private var sideEdge: Placement { model.placement == .left ? .left : .right }
+
+    private func makeSideCard(edge: Placement) -> SideCardView {
+        SideCardView(model: model, edge: edge, metrics: sideMetrics) { [weak self] in self?.openSettings() }
+    }
+
+    private var visibleFrame: CGRect {
+        NSScreen.screens.first {
+            ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) == model.geometry.displayID
+        }?.visibleFrame ?? model.geometry.screenFrame
+    }
+
+    func layoutSide() {
+        guard let tab = sideTabPanel, let card = sideCardPanel else { return }
+        guard model.placement != .top else {
+            tab.orderOut(nil)
+            card.orderOut(nil)
+            if !panel.isVisible { panel.orderFrontRegardless() }
+            return
+        }
+        panel.orderOut(nil)
+        model.expanded = false
+
+        // Arah tab & kartu mengikuti tepi yang dipilih.
+        if let host = tab.contentView as? FirstMouseHostingView<SideTabView>, host.rootView.edge != sideEdge {
+            host.rootView = SideTabView(model: model, edge: sideEdge)
+        }
+        if let host = card.contentView as? FirstMouseHostingView<SideCardView>, host.rootView.edge != sideEdge {
+            host.rootView = makeSideCard(edge: sideEdge)
+        }
+
+        // Kedua jendela berukuran tetap; hanya berubah bila posisi/tepi/jumlah agent berubah.
+        // Semua animasi (hover, notifikasi, mode mini) terjadi di dalam SwiftUI.
+        let screen = model.geometry.screenFrame, visible = visibleFrame
+        let size = SideTabView.size(for: model)
+        let centerY = visible.maxY - CGFloat(model.sideFraction) * visible.height
+        let y = min(max(centerY - size.height / 2, visible.minY + 4), visible.maxY - size.height - 4)
+        let x = sideEdge == .right ? screen.maxX - size.width : screen.minX
+        let tabFrame = CGRect(x: x, y: y, width: size.width, height: size.height)
+        if tab.frame != tabFrame { tab.setFrame(tabFrame, display: true) }
+        if !tab.isVisible { tab.orderFrontRegardless() }
+
+        let cardHeight = min(SideCardView.maxHeight, visible.height - 8)
+        let cx = sideEdge == .right ? tabFrame.minX - 8 - SideCardView.width : tabFrame.maxX + 8
+        let top = min(tabFrame.maxY, visible.maxY - 4)
+        let cy = max(top - cardHeight, visible.minY + 4)
+        let cardFrame = CGRect(x: cx, y: cy, width: SideCardView.width, height: cardHeight)
+        if card.frame != cardFrame { card.setFrame(cardFrame, display: true) }
+        if !card.isVisible { card.orderFrontRegardless() }
+    }
+
+    /// Bagian jendela kartu yang berisi konten (sisanya transparan dan tembus klik).
+    private var sideCardContentRect: CGRect? {
+        guard let card = sideCardPanel, card.isVisible, sideMetrics.height > 1,
+              model.sideHover || model.sideToast != nil else { return nil }
+        let h = min(sideMetrics.height, card.frame.height)
+        return CGRect(x: card.frame.minX, y: card.frame.maxY - h, width: card.frame.width, height: h)
+    }
+
+    /// Hover membuka kartu detail; ⌥ + drag pada tab menggesernya sepanjang tepi.
+    private func trackSide(_ p: CGPoint) {
+        guard let tab = sideTabPanel, let card = sideCardPanel else { return }
+        let dragging = NSEvent.pressedMouseButtons & 1 != 0
+        let tabHit = SideTabView.hitRect(in: tab.frame, model: model, edge: sideEdge)
+        let inTab = tab.isVisible && tabHit.insetBy(dx: -6, dy: -4).contains(p)
+        let inCard = sideCardContentRect?.contains(p) ?? false
+
+        if dragging, NSEvent.modifierFlags.contains(.option), sideDragging || inTab {
+            sideDragging = true
+            let visible = visibleFrame
+            model.sideFraction = min(max(Double((visible.maxY - p.y) / visible.height), 0.06), 0.94)
+            return
+        }
+        if !dragging { sideDragging = false }
+
+        tab.ignoresMouseEvents = !inTab
+        card.ignoresMouseEvents = !inCard
+        if inTab || inCard {
+            sideCollapseWork?.cancel()
+            sideCollapseWork = nil
+            if inTab, !model.sideHover {
+                model.refreshControls()
+                model.sideHover = true
+            }
+            // Ring di bawah kursor → fokus kartu (sel tersusun dari atas tab).
+            if inTab, !SideTabView.isMinimized(model), !model.sideProviders.isEmpty {
+                let fromTop = tab.frame.maxY - p.y - (10 + SideTabView.ear)
+                let index = min(max(Int(fromTop / SideTabView.cellHeight), 0), model.sideProviders.count - 1)
+                let focus = model.sideProviders[index]
+                if model.sideFocus != focus { model.sideFocus = focus }
+            }
+        } else if model.sideHover, sideCollapseWork == nil {
+            let work = DispatchWorkItem { [weak self] in
+                self?.model.sideHover = false
+                self?.sideCollapseWork = nil
+            }
+            sideCollapseWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+        }
     }
 
     private var hoverWork: DispatchWorkItem?
@@ -1366,6 +1500,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func trackMouse() {
         let p = NSEvent.mouseLocation
+        if model.placement != .top {
+            trackSide(p)
+            return
+        }
         let g = model.geometry
         let hotZone = g.notchRect.insetBy(dx: -8, dy: -4)
         let es = model.expandedSize

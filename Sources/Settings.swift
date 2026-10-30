@@ -175,6 +175,13 @@ struct SettingsView: View {
     private var appearance: some View {
         Group {
             Section {
+                Picker("Posisi", selection: $model.placement) {
+                    ForEach(Placement.allCases) { Text($0.title).tag($0) }
+                }
+                if model.placement != .top {
+                    Toggle("Mode mini saat tidak ada aktivitas", isOn: $model.sideMini)
+                    Button("Kembalikan tab ke posisi awal") { model.sideFraction = 0.3 }
+                }
                 Picker("Layar", selection: Binding(
                     get: { state.displayMode },
                     set: { mode in
@@ -189,7 +196,11 @@ struct SettingsView: View {
                     Text("\(model.geometry.screenName) · \(model.geometry.hasPhysicalNotch ? "notch fisik" : "tanpa notch") · \(Int(model.geometry.notchSize.width))×\(Int(model.geometry.notchSize.height)) pt")
                         .foregroundStyle(.secondary)
                 }
-            } header: { Text("Posisi") }
+            } header: { Text("Posisi") } footer: {
+                if model.placement != .top {
+                    Text("Tab menempel di tepi layar. Arahkan kursor ke tab untuk melihat detail, klik ring untuk membuka app-nya, dan tahan ⌥ Option sambil menyeret tab untuk menggesernya naik-turun. Mode mini mengecilkan tab menjadi garis tipis selama tidak ada aktivitas.")
+                }
+            }
 
             Section {
                 Toggle("Tampilkan island saat diam di layar tanpa notch", isOn: $model.showIdleWithoutNotch)
