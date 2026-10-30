@@ -840,7 +840,9 @@ struct NotchView: View {
             insertion: AnyTransition(.blurReplace)
                 .combined(with: .scale(scale: 0.94, anchor: .top))
                 .animation(islandSpring.delay(0.05)),
-            removal: .opacity.animation(.easeOut(duration: 0.12)))
+            // Keluar: mengecil ke arah notch (tengah atas) sambil memudar — mengikuti kotak yang menyusut.
+            removal: .scale(scale: 0.45, anchor: .top).combined(with: .opacity)
+                .animation(.easeIn(duration: 0.18)))
     }
 
     /// Di layar tanpa notch, pil hitam permanen akan menutupi konten (tab browser, judul jendela),
@@ -851,12 +853,11 @@ struct NotchView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        let shape = NotchShape(topRadius: topR,
+                               bottomRadius: model.expanded ? 32 : (compact == .none ? 10 : 14))
+        return VStack(spacing: 0) {
             ZStack(alignment: .top) {
-                NotchShape(topRadius: topR,
-                           bottomRadius: model.expanded ? 32 : (compact == .none ? 10 : 14))
-                    .fill(Color.black)
-                    .shadow(color: .black.opacity(model.expanded ? 0.35 : 0), radius: 18, y: 8)
+                shape.fill(Color.black)
 
                 if model.expanded {
                     expandedContent
@@ -880,6 +881,11 @@ struct NotchView: View {
                 }
             }
             .frame(width: size.width, height: size.height)
+            // Isi dipotong mengikuti bentuk notch yang sedang beranimasi: saat menyusut,
+            // tidak ada kartu yang tertinggal di luar kotak hitam.
+            .clipShape(shape)
+            .compositingGroup()
+            .shadow(color: .black.opacity(model.expanded ? 0.35 : 0), radius: 18, y: 8)
             .opacity(invisible ? 0 : 1)
             .scaleEffect(invisible ? 0.85 : 1, anchor: .top)
             Spacer(minLength: 0)
