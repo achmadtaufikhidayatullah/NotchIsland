@@ -196,6 +196,78 @@
   }
   .note code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; font-size: 13px; }
 
+  /* Tutorial instalasi */
+  .tut { margin-top: 44px; display: grid; gap: 18px; }
+  .tstep { display: grid; grid-template-columns: 1fr 1.05fr; gap: 28px; align-items: center;
+           background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 26px; }
+  .tstep .num { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+                background: #fff; color: #000; font-weight: 700; font-size: 14px; margin-bottom: 12px; }
+  .tstep h3 { font-size: 20px; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .tstep p { color: var(--muted); font-size: 15px; }
+  .tstep p + p { margin-top: 8px; }
+  .tstep .warn { color: #ffb15c; }
+  .kbd { font-family: inherit; font-size: 13px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+         border-radius: 6px; padding: 1px 7px; color: #fff; white-space: nowrap; }
+  .en { color: var(--faint); font-size: 13px; }
+  .shot { background: #1c1d22; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px;
+          min-height: 170px; display: grid; place-items: center; position: relative; overflow: hidden; }
+  .mwin { width: 100%; max-width: 340px; background: #2a2b31; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);
+          box-shadow: 0 18px 40px rgba(0,0,0,0.45); overflow: hidden; }
+  .mbar { height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: rgba(255,255,255,0.04);
+          font-size: 11px; color: var(--muted); }
+  .mbar i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; display: inline-block; }
+  .mbar i:nth-child(2) { background: #febc2e; } .mbar i:nth-child(3) { background: #28c840; }
+  .mbar span { margin-left: 8px; }
+  .dmg { display: flex; align-items: center; justify-content: space-around; padding: 22px 14px; }
+  .dmg figure { text-align: center; font-size: 11px; color: #fff; }
+  .dmg img { width: 58px; height: 58px; display: block; margin: 0 auto 6px; }
+  .folder { width: 58px; height: 46px; margin: 6px auto 12px; border-radius: 7px; position: relative;
+            background: linear-gradient(180deg, #6cb6ff, #2f86ea); }
+  .folder::before { content: ""; position: absolute; top: -7px; left: 4px; width: 24px; height: 10px; border-radius: 4px 4px 0 0; background: #6cb6ff; }
+  .arrow { color: #fff; font-size: 26px; opacity: .8; animation: nudge 1.4s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: translateX(8px); } }
+  .dialog { width: 100%; max-width: 270px; background: #2c2d33; border-radius: 18px; padding: 20px 18px 16px; text-align: center;
+            border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 18px 40px rgba(0,0,0,0.5); }
+  .dialog .lock { font-size: 34px; line-height: 1; margin-bottom: 8px; }
+  .dialog b { display: block; font-size: 13px; margin-bottom: 6px; }
+  .dialog small { display: block; color: var(--muted); font-size: 11px; line-height: 1.45; margin-bottom: 14px; }
+  .mbtn { display: block; width: 100%; padding: 7px; border-radius: 9px; font-size: 12px; font-weight: 600; margin-top: 7px;
+          background: rgba(255,255,255,0.1); color: #fff; position: relative; }
+  .mbtn.blue { background: #0a84ff; }
+  .mbtn.no { opacity: .55; text-decoration: line-through; }
+  .mbtn.yes { outline: 2px solid #34d74a; outline-offset: 3px; animation: glow 1.6s ease-in-out infinite; }
+  @keyframes glow { 50% { outline-color: rgba(52,215,74,0.25); } }
+  .tag { position: absolute; right: -6px; top: -11px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+         background: #34d74a; color: #000; text-decoration: none; }
+  .tag.red { background: #ff453a; color: #fff; }
+  .tag.left { right: auto; left: -10px; }
+  .settings { display: grid; grid-template-columns: 110px 1fr; min-height: 180px; }
+  .settings aside { background: rgba(255,255,255,0.03); padding: 10px 8px; font-size: 10.5px; color: var(--muted); }
+  .settings aside div { padding: 4px 7px; border-radius: 6px; }
+  .settings aside .on { background: #0a84ff; color: #fff; }
+  .settings main { padding: 14px; font-size: 11px; color: var(--muted); }
+  .settings main h5 { color: #fff; font-size: 12px; margin-bottom: 8px; }
+  .settings .row2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px;
+                    background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 6px; }
+  .settings .row2 .mbtn { width: auto; margin: 0; padding: 5px 10px; white-space: nowrap; }
+  .menubar2 { width: 100%; max-width: 340px; }
+  .mstrip { height: 26px; border-radius: 8px 8px 0 0; background: rgba(255,255,255,0.08); display: flex; align-items: center;
+            justify-content: flex-end; gap: 12px; padding: 0 10px; font-size: 11px; color: #fff; }
+  .capsule { width: 22px; height: 12px; border-radius: 99px; background: #fff; outline: 2px solid #34d74a; outline-offset: 3px;
+             animation: glow 1.6s ease-in-out infinite; }
+  .mmenu { margin-left: auto; width: 210px; background: #2c2d33; border-radius: 0 0 10px 10px; padding: 6px; font-size: 11.5px;
+           border: 1px solid rgba(255,255,255,0.08); border-top: none; }
+  .mmenu div { padding: 5px 8px; border-radius: 6px; display: flex; justify-content: space-between; }
+  .mmenu .hl { background: #0a84ff; }
+  .mmenu hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 4px 6px; }
+  .cmd { margin-top: 18px; display: flex; gap: 10px; align-items: center; background: #0d0e12; border: 1px solid rgba(255,255,255,0.1);
+         border-radius: 12px; padding: 12px 12px 12px 16px; }
+  .cmd code { flex: 1; font-size: 13px; color: #e6e6ea; overflow-x: auto; white-space: nowrap; }
+  .copy { flex: none; font: inherit; font-size: 12px; font-weight: 600; color: #000; background: #fff; border: none; border-radius: 8px;
+          padding: 7px 12px; cursor: pointer; }
+  .tip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+  .tip-grid details { margin: 0; }
+
   /* Privacy & FAQ */
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 44px; }
   details { background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; padding: 18px 22px; }
@@ -212,7 +284,8 @@
 
   /* ---------- Responsive ---------- */
   @media (max-width: 860px) {
-    .grid, .steps, .two, .preview { grid-template-columns: 1fr; }
+    .grid, .steps, .two, .preview, .tstep, .tip-grid { grid-template-columns: 1fr; }
+    .tstep { padding: 20px; gap: 18px; }
     .nav-links a:not(.gh) { display: none; }
     section { padding: 72px 0; }
   }
@@ -225,6 +298,10 @@
     .island { padding: 0 12px; }
     .slot { font-size: 10.5px; gap: 6px; }
     .tiles { grid-template-columns: 1fr; }
+    .settings { grid-template-columns: 1fr; }
+    .settings aside { display: none; }
+    .settings .row2 { flex-direction: column; align-items: flex-start; }
+    .shot { padding: 14px; }
     .btn { width: 100%; justify-content: center; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -281,7 +358,7 @@
         Lihat source
       </a>
     </div>
-    <p class="meta">Gratis &amp; open-source (MIT) · macOS 14 Sonoma ke atas · Apple Silicon &amp; Intel · 2,7 MB</p>
+    <p class="meta">Gratis &amp; open-source (MIT) · macOS 14 Sonoma ke atas · Apple Silicon &amp; Intel · ±3 MB</p>
   </div>
 </header>
 
@@ -333,17 +410,145 @@
 <section id="pasang" style="padding-top:0">
   <div class="wrap">
     <div class="eyebrow">Pasang</div>
-    <h2>Siap dalam satu menit.</h2>
-    <div class="steps">
-      <div class="card step"><h3>Unduh &amp; seret</h3><p>Buka <span class="mono">NotchIsland.dmg</span>, lalu seret NotchIsland ke folder Applications.</p></div>
-      <div class="card step"><h3>Buka sekali</h3><p>Pertama kali, buka <b>Pengaturan Sistem › Privasi &amp; Keamanan</b> lalu klik <b>Tetap Buka</b>. Ikon kapsul muncul di menu bar.</p></div>
-      <div class="card step"><h3>Hubungkan</h3><p>Ikon kapsul › <b>Pengaturan…</b> › <b>Integrasi</b> › Hubungkan Claude Code / Terminal. Aktifkan juga <b>Buka saat login</b> di bagian Umum.</p></div>
+    <h2>Cara memasang, langkah demi langkah.</h2>
+    <p class="sub">Sekitar 2 menit. NotchIsland belum dinotarisasi Apple, jadi macOS akan meminta konfirmasi <b>sekali</b> saat pertama dibuka. Ikuti langkah 3–5 dengan teliti.</p>
+
+    <div class="tut">
+      <div class="tstep">
+        <div>
+          <div class="num">1</div>
+          <h3>Unduh NotchIsland</h3>
+          <p>Klik <a href="https://github.com/achmadtaufikhidayatullah/NotchIsland/releases/latest/download/NotchIsland.dmg" style="text-decoration:underline">Download for macOS</a>. File <span class="mono">NotchIsland.dmg</span> (±3 MB) masuk ke folder <b>Unduhan</b> <span class="en">(Downloads)</span>.</p>
+          <p>Butuh macOS 14 Sonoma atau lebih baru; Apple Silicon maupun Intel.</p>
+        </div>
+        <div class="shot" aria-hidden="true">
+          <div class="dialog" style="max-width:250px">
+            <img src="icon.png" alt="" style="width:64px;height:64px;margin:0 auto 8px;display:block">
+            <b>NotchIsland.dmg</b>
+            <small>3,2 MB · Unduhan</small>
+            <span class="mbtn blue">Download for macOS</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tstep">
+        <div>
+          <div class="num">2</div>
+          <h3>Buka DMG, seret ke Applications</h3>
+          <p>Klik dua kali <span class="mono">NotchIsland.dmg</span>. Di jendela yang terbuka, <b>seret ikon NotchIsland ke folder Applications</b>.</p>
+          <p class="warn">Jangan membuka app langsung dari jendela DMG — selalu dari folder Applications.</p>
+        </div>
+        <div class="shot" aria-hidden="true">
+          <div class="mwin">
+            <div class="mbar"><i></i><i></i><i></i><span>NotchIsland</span></div>
+            <div class="dmg">
+              <figure><img src="icon.png" alt="">NotchIsland</figure>
+              <div class="arrow">→</div>
+              <figure><div class="folder"></div>Applications</figure>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tstep">
+        <div>
+          <div class="num">3</div>
+          <h3>Buka NotchIsland → klik <span class="kbd">Done</span></h3>
+          <p>Buka NotchIsland dari folder Applications (atau Launchpad). macOS akan menampilkan peringatan <i>“NotchIsland.app” Not Opened</i>.</p>
+          <p><b>Klik <span class="kbd">Done</span></b> <span class="en">(Selesai)</span>. <span class="warn">Jangan klik <b>Move to Trash</b></span> — tombol biru itu memang yang paling menonjol, tapi akan menghapus app-nya.</p>
+        </div>
+        <div class="shot" aria-hidden="true">
+          <div class="dialog">
+            <div class="lock">🔒</div>
+            <b>“NotchIsland.app” Not Opened</b>
+            <small>Apple could not verify “NotchIsland.app” is free of malware that may harm your Mac or compromise your privacy.</small>
+            <span class="mbtn blue no">Move to Trash<span class="tag red">jangan</span></span>
+            <span class="mbtn yes">Done<span class="tag">klik ini</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tstep">
+        <div>
+          <div class="num">4</div>
+          <h3>Privasi &amp; Keamanan → <span class="kbd">Open Anyway</span></h3>
+          <p>Buka <b>Pengaturan Sistem</b> <span class="en">(System Settings)</span> › <b>Privasi &amp; Keamanan</b> <span class="en">(Privacy &amp; Security)</span>, lalu <b>gulir ke bawah</b> sampai bagian <i>Keamanan</i>.</p>
+          <p>Di samping tulisan <i>“NotchIsland.app” was blocked…</i>, klik <b><span class="kbd">Open Anyway</span></b> <span class="en">(Tetap Buka)</span>.</p>
+        </div>
+        <div class="shot" aria-hidden="true">
+          <div class="mwin">
+            <div class="mbar"><i></i><i></i><i></i><span>Privacy &amp; Security</span></div>
+            <div class="settings">
+              <aside><div>General</div><div>Appearance</div><div>Displays</div><div class="on">Privacy &amp; Security</div><div>Touch ID</div></aside>
+              <main>
+                <h5>Security</h5>
+                Allow applications from: App Store &amp; Known Developers
+                <div class="row2"><span>“NotchIsland.app” was blocked to protect your Mac.</span><span class="mbtn yes">Open Anyway<span class="tag left">klik</span></span></div>
+              </main>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tstep">
+        <div>
+          <div class="num">5</div>
+          <h3>Konfirmasi sekali lagi</h3>
+          <p>Masukkan <b>password Mac</b> atau Touch ID, lalu pada dialog berikutnya klik <b><span class="kbd">Open Anyway</span></b> sekali lagi.</p>
+          <p>Selesai — peringatan ini <b>tidak akan muncul lagi</b> untuk versi ini.</p>
+        </div>
+        <div class="shot" aria-hidden="true">
+          <div class="dialog">
+            <div class="lock">🔒</div>
+            <b>Open “NotchIsland.app”?</b>
+            <small>macOS cannot verify the developer of “NotchIsland.app”. Are you sure you want to open it?</small>
+            <span class="mbtn blue yes">Open Anyway<span class="tag">klik</span></span>
+            <span class="mbtn">Cancel</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tstep">
+        <div>
+          <div class="num">6</div>
+          <h3>Cari ikon kapsul di menu bar</h3>
+          <p>NotchIsland tidak membuka jendela biasa — app ini hidup di <b>ikon kapsul</b> di menu bar kanan atas. Saat pertama kali, jendela <b>Pengaturan › Integrasi</b> terbuka otomatis.</p>
+          <p>Klik <b>Hubungkan</b> untuk Claude Code (dan Terminal, opsional), lalu nyalakan <b>Buka saat login</b> di bagian <i>Umum</i>. Arahkan kursor ke notch untuk mulai memakai.</p>
+        </div>
+        <div class="shot" aria-hidden="true">
+          <div class="menubar2">
+            <div class="mstrip"><span>Wi-Fi</span><span class="capsule"></span><span>11.43</span></div>
+            <div class="mmenu">
+              <div><span>MacBook Pro (Mac15,3)</span></div>
+              <hr>
+              <div class="hl"><span>Pengaturan…</span><span>⌘,</span></div>
+              <div><span>Hubungkan Claude Code…</span></div>
+              <hr>
+              <div><span>Tes notifikasi</span><span>›</span></div>
+              <div><span>Keluar</span><span>⌘Q</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="note">
-      NotchIsland belum dinotarisasi Apple, jadi macOS meminta konfirmasi saat pertama dibuka. Alternatif lewat Terminal:
-      <code>xattr -dr com.apple.quarantine /Applications/NotchIsland.app</code>
-      · Lebih suka build sendiri? Ikuti <a href="https://github.com/achmadtaufikhidayatullah/NotchIsland#instalasi" style="text-decoration:underline">panduan di GitHub</a>.
+
+    <h3 style="margin-top:44px;font-size:20px">Jalan pintas lewat Terminal</h3>
+    <p class="sub" style="font-size:16px">Sebagai ganti langkah 3–5: setelah app ada di folder Applications, jalankan perintah ini di Terminal, lalu buka NotchIsland seperti biasa.</p>
+    <div class="cmd">
+      <code id="xattr">xattr -dr com.apple.quarantine /Applications/NotchIsland.app</code>
+      <button class="copy" data-copy="xattr">Salin</button>
     </div>
+
+    <h3 style="margin-top:44px;font-size:20px">Ada masalah?</h3>
+    <div class="tip-grid">
+      <details><summary>“NotchIsland is damaged and can’t be opened”</summary><p>Ini peringatan karantina macOS, bukan file rusak. Jalankan perintah Terminal di atas, lalu buka app lagi.</p></details>
+      <details><summary>Tombol “Open Anyway” tidak muncul</summary><p>Tombol itu baru muncul setelah kamu mencoba membuka app sekali (langkah 3) dan hanya bertahan sekitar satu jam. Buka NotchIsland sekali lagi, klik Done, lalu kembali ke Privasi &amp; Keamanan.</p></details>
+      <details><summary>App terbuka tapi tidak terlihat apa-apa</summary><p>Wajar: tidak ada jendela biasa. Cari ikon kapsul di menu bar. Di Mac tanpa notch, island hanya muncul saat ada aktivitas — arahkan kursor ke tengah atas layar atau pilih <i>Sisi kanan layar</i> di Pengaturan › Tampilan. Bila menu bar penuh, ikon kapsul bisa tersembunyi di balik notch; tutup beberapa ikon lain.</p></details>
+      <details><summary>Cara memperbarui ke versi baru</summary><p>Ikon kapsul › Keluar. Unduh DMG terbaru, seret ke Applications, pilih <b>Ganti</b> <span class="en">(Replace)</span>, lalu buka. Peringatan langkah 3–5 bisa muncul sekali lagi untuk versi baru. Cek versi terbaru: Pengaturan › Umum › Cek pembaruan.</p></details>
+      <details><summary>Status Claude tidak muncul</summary><p>Pastikan Pengaturan › Integrasi › Claude Code sudah <b>Hubungkan</b>, lalu mulai prompt baru di Claude Code. Persen limit resmi muncul setelah aplikasi Claude Desktop dibuka sekali.</p></details>
+      <details><summary>Cara mencopot</summary><p>Pengaturan › Integrasi › <b>Lepas</b> untuk Claude Code &amp; Terminal, lalu ikon kapsul › Keluar, dan hapus NotchIsland dari folder Applications.</p></details>
+    </div>
+    <p class="meta" style="margin-top:20px">Lebih suka build sendiri dari source? Ikuti <a href="https://github.com/achmadtaufikhidayatullah/NotchIsland#instalasi" style="text-decoration:underline">panduan di GitHub</a>.</p>
   </div>
 </section>
 
@@ -370,7 +575,7 @@
   <div class="wrap">
     <img src="icon.png" alt="Ikon NotchIsland">
     <h2>Hidupkan notch-mu.</h2>
-    <p class="sub" style="margin:0 auto">Gratis, open-source, dan ringan (2,7 MB).</p>
+    <p class="sub" style="margin:0 auto">Gratis, open-source, dan ringan (±3 MB).</p>
     <div class="cta">
       <a class="btn btn-primary" href="https://github.com/achmadtaufikhidayatullah/NotchIsland/releases/latest/download/NotchIsland.dmg">Download for macOS</a>
     </div>
@@ -434,6 +639,14 @@
     show();
     setInterval(show, 3200);
   }
+
+  // Tombol salin perintah Terminal.
+  document.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', async () => {
+    const text = document.getElementById(btn.dataset.copy).textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Tersalin ✓'; }
+    catch { btn.textContent = 'Salin manual'; }
+    setTimeout(() => btn.textContent = 'Salin', 1800);
+  }));
 
   const clock = document.getElementById('clock');
   const tick = () => { const d = new Date(); clock.textContent = d.toTimeString().slice(0, 5).replace(':', '.'); };

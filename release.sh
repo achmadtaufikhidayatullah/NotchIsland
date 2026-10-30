@@ -25,15 +25,19 @@ NotchIsland — cara memasang
 1. Seret NotchIsland ke folder Applications.
 2. Buka NotchIsland dari folder Applications.
 
-Karena app ini belum dinotarisasi Apple, macOS akan menolak saat pertama dibuka:
-  • Buka Pengaturan Sistem › Privasi & Keamanan, gulir ke bawah,
-    lalu klik "Tetap Buka" (Open Anyway) di samping NotchIsland.
+Karena app ini belum dinotarisasi Apple, macOS akan menampilkan
+"NotchIsland.app" Not Opened saat pertama dibuka:
+  1. Klik "Done" (Selesai). JANGAN klik "Move to Trash".
+  2. Buka Pengaturan Sistem › Privasi & Keamanan, gulir ke bawah,
+     lalu klik "Open Anyway" (Tetap Buka) di samping NotchIsland.
+  3. Masukkan password / Touch ID, lalu klik "Open Anyway" sekali lagi.
   • Atau jalankan di Terminal:
       xattr -dr com.apple.quarantine /Applications/NotchIsland.app
 
 Setelah terbuka, ikon kapsul muncul di menu bar.
 Hubungkan Claude Code lewat: ikon kapsul › Pengaturan… › Integrasi.
 
+Panduan bergambar: https://achmadtaufikhidayatullah.github.io/NotchIsland/#pasang
 Source & panduan lengkap: https://github.com/achmadtaufikhidayatullah/NotchIsland
 TXT
 

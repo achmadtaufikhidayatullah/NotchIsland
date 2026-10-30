@@ -63,9 +63,11 @@ Ada dua cara: **unduh DMG** (paling mudah, tanpa terminal) atau **build sendiri 
 
 1. Unduh **[NotchIsland.dmg](https://github.com/achmadtaufikhidayatullah/NotchIsland/releases/latest/download/NotchIsland.dmg)** dari halaman [Releases](https://github.com/achmadtaufikhidayatullah/NotchIsland/releases/latest).
 2. Buka file DMG, lalu seret **NotchIsland** ke folder **Applications**.
-3. Buka NotchIsland dari folder Applications. App ini belum dinotarisasi Apple, jadi pertama kali dibuka macOS akan menolaknya:
-   - buka **Pengaturan Sistem › Privasi & Keamanan**, gulir ke bawah, lalu klik **Tetap Buka** (*Open Anyway*) di samping NotchIsland; **atau**
+3. Buka NotchIsland dari folder Applications. App ini belum dinotarisasi Apple, jadi macOS menampilkan *"NotchIsland.app" Not Opened*. Klik **Done** (Selesai). **Jangan klik Move to Trash**, karena tombol itu menghapus app-nya.
+   - Buka **Pengaturan Sistem › Privasi & Keamanan**, gulir ke bawah, lalu klik **Open Anyway** (Tetap Buka) di samping NotchIsland. Masukkan password atau Touch ID, lalu klik **Open Anyway** sekali lagi; **atau**
    - jalankan di Terminal: `xattr -dr com.apple.quarantine /Applications/NotchIsland.app`
+
+   Panduan bergambar: [achmadtaufikhidayatullah.github.io/NotchIsland/#pasang](https://achmadtaufikhidayatullah.github.io/NotchIsland/#pasang)
 4. Ikon kapsul muncul di menu bar. Lanjutkan ke [langkah 5](#5-jalankan) dan seterusnya untuk mengaktifkan login otomatis dan integrasi.
 
 Mendukung Apple Silicon dan Intel. Di Mac tanpa notch, island hanya muncul saat ada aktivitas (tidak menutupi konten saat diam).
