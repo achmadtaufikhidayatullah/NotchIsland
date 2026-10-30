@@ -1232,6 +1232,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var terminalSink: AnyCancellable?
     var terminalItem: NSMenuItem!
     var loginItem: NSMenuItem!
+    var claudeHookItem: NSMenuItem!
+    var terminalHookItem: NSMenuItem!
 
     func applicationWillTerminate(_ note: Notification) {
         model?.systemMedia.stop()
@@ -1255,6 +1257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         setupStatusItem()
+        migrateIntegrations()
 
         // `open NotchIsland.app --args --enable-login-item` mengaktifkan "Buka saat login" sekali jalan.
         if CommandLine.arguments.contains("--enable-login-item"), SMAppService.mainApp.status != .enabled {
@@ -1365,6 +1368,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             mediaModeItems.append(item)
         }
         mediaMenu.delegate = self
+        let integrationMenu = NSMenu()
+        claudeHookItem = NSMenuItem(title: "Claude Code (status sesi)", action: #selector(toggleClaudeHook), keyEquivalent: "")
+        terminalHookItem = NSMenuItem(title: "Terminal zsh (command selesai)", action: #selector(toggleTerminalHook), keyEquivalent: "")
+        for item in [claudeHookItem!, terminalHookItem!] {
+            item.target = self
+            integrationMenu.addItem(item)
+        }
+        integrationMenu.delegate = self
+        let integrationItem = NSMenuItem(title: "Integrasi", action: nil, keyEquivalent: "")
+        integrationItem.submenu = integrationMenu
+        menu.addItem(integrationItem)
         terminalItem = NSMenuItem(title: "Notifikasi command terminal", action: #selector(toggleTerminal), keyEquivalent: "")
         terminalItem.target = self
         menu.addItem(terminalItem)
@@ -1393,6 +1407,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         soundItem.state = model.soundOnClaudeDone ? .on : .off
         usageItem.state = model.alwaysShowUsage ? .on : .off
         terminalItem.state = model.terminalAlertsEnabled ? .on : .off
+        claudeHookItem.state = Integrations.claudeHookStatus() == .notInstalled ? .off : .on
+        terminalHookItem.state = Integrations.isTerminalHookInstalled() ? .on : .off
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         for item in mediaModeItems {
             item.state = item.representedObject as? String == model.mediaLiveMode.rawValue ? .on : .off
@@ -1418,6 +1434,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func testTerminalAlert() { model.testTerminalAlerts() }
     @objc func toggleTerminal() { model.terminalAlertsEnabled.toggle() }
 
+    // MARK: Integrasi (hook)
+
+    /// Hook lama (skrip Python) atau path app yang berpindah → arahkan ulang ke app ini.
+    /// Hanya menyentuh entri milik NotchIsland, dan tidak dari lokasi sementara (DMG).
+    func migrateIntegrations() {
+        guard !Integrations.isRunningFromTemporaryLocation else { return }
+        if Integrations.claudeHookStatus() == .outdated {
+            do { try Integrations.installClaudeHook() } catch { NSLog("NotchIsland: migrasi hook Claude gagal: \(error)") }
+        }
+        if Integrations.isTerminalHookInstalled() { try? Integrations.refreshTerminalScript() }
+    }
+
+    /// Konfirmasi sebelum mengubah file konfigurasi pengguna.
+    private func confirm(_ title: String, _ text: String, _ button: String) -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = text
+        alert.addButton(withTitle: button)
+        alert.addButton(withTitle: "Batal")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func report(_ error: Error) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert(error: error)
+        alert.runModal()
+    }
+
+    @objc func toggleClaudeHook() {
+        let installed = Integrations.claudeHookStatus() != .notInstalled
+        if Integrations.isRunningFromTemporaryLocation, !installed {
+            report(NSError(domain: "NotchIsland", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                "Pindahkan NotchIsland ke folder Aplikasi dulu, lalu buka dari sana sebelum menghubungkan Claude Code."]))
+            return
+        }
+        let ok = installed
+            ? confirm("Lepas hook Claude Code?", "Entri NotchIsland akan dihapus dari ~/.claude/settings.json (backup dibuat). Status Claude tidak lagi tampil di notch.", "Lepas")
+            : confirm("Hubungkan Claude Code?", "NotchIsland akan menambahkan hook ke ~/.claude/settings.json (backup: settings.json.bak-notchisland) supaya status sesi Claude tampil di notch. Hook lain milikmu tidak diubah.", "Hubungkan")
+        guard ok else { return }
+        do {
+            try installed ? Integrations.uninstallClaudeHook() : Integrations.installClaudeHook()
+        } catch {
+            report(error)
+        }
+    }
+
+    @objc func toggleTerminalHook() {
+        let installed = Integrations.isTerminalHookInstalled()
+        let ok = installed
+            ? confirm("Lepas hook terminal?", "Baris NotchIsland akan dihapus dari ~/.zshrc (backup dibuat). Berlaku di jendela terminal baru.", "Lepas")
+            : confirm("Aktifkan notifikasi command terminal?", "NotchIsland akan menambahkan satu baris `source` ke ~/.zshrc (backup: .zshrc.bak-notchisland). Command yang berjalan ≥30 detik akan memberi notifikasi di notch saat selesai. Berlaku di jendela terminal baru.", "Aktifkan")
+        guard ok else { return }
+        do {
+            try installed ? Integrations.uninstallTerminalHook() : Integrations.installTerminalHook()
+        } catch {
+            report(error)
+        }
+    }
+
     /// Login item resmi macOS (Pengaturan Sistem › Umum › Item Login).
     @objc func toggleLoginItem() {
         let service = SMAppService.mainApp
@@ -1432,6 +1508,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         // macOS bisa meminta persetujuan pengguna di Pengaturan Sistem.
         if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+    }
+}
+
+// Hook Claude Code: `NotchIsland --claude-hook` (dipanggil oleh Claude Code, bukan oleh pengguna).
+if CommandLine.arguments.contains("--claude-hook") {
+    ClaudeHook.run()
+}
+
+// Pemasang hook dari terminal (dipakai juga oleh hooks/*.sh).
+let integrationCommands: [String: () throws -> Void] = [
+    "--install-claude-hook": Integrations.installClaudeHook,
+    "--uninstall-claude-hook": Integrations.uninstallClaudeHook,
+    "--install-terminal-hook": Integrations.installTerminalHook,
+    "--uninstall-terminal-hook": Integrations.uninstallTerminalHook,
+]
+if let flag = CommandLine.arguments.first(where: { integrationCommands[$0] != nil }) {
+    do {
+        try integrationCommands[flag]!()
+        print(flag.contains("uninstall") ? "✓ Hook dilepas." : "✓ Hook terpasang.")
+        exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("✗ \(error.localizedDescription)\n".utf8))
+        exit(1)
     }
 }
 

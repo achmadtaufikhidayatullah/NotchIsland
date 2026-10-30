@@ -123,17 +123,13 @@ open build/NotchIsland.app
 
 #### 7. Hubungkan Claude Code (opsional, untuk monitoring Claude)
 
-```bash
-./hooks/install-hooks.sh
-```
+Klik ikon kapsul › **Integrasi** › **Claude Code (status sesi)** › **Hubungkan**.
 
 Lalu **mulai prompt baru** di Claude Code (terminal atau aplikasi Claude Desktop). Island akan menampilkan status kerjanya. Untuk persen limit resmi, cukup buka **aplikasi Claude Desktop** sekali.
 
 #### 8. Notifikasi command terminal (opsional)
 
-```bash
-./hooks/install-zsh-hook.sh
-```
+Klik ikon kapsul › **Integrasi** › **Terminal zsh (command selesai)** › **Aktifkan**.
 
 Tutup lalu buka lagi Terminal. Uji dengan `sleep 31`, lalu pindah ke app lain: notch akan menampilkan ✓ saat command selesai.
 
@@ -159,7 +155,7 @@ pkill -x NotchIsland; open build/NotchIsland.app
 
 ## Detail hook (referensi)
 
-Hook dibutuhkan untuk status Claude Code dan notifikasi terminal. Semuanya bisa dilepas lagi, dan file aslinya dibackup sebelum diubah.
+Hook dibutuhkan untuk status Claude Code dan notifikasi terminal. Cara termudah: menu ikon kapsul › **Integrasi** (klik lagi untuk melepas). Skrip di `hooks/` melakukan hal yang sama dari terminal. Semua perubahan hanya menyentuh entri milik NotchIsland, dan file aslinya dibackup lebih dulu.
 
 ### 1. Hook Claude Code
 
@@ -172,9 +168,9 @@ Menulis status sesi (bekerja / menunggu / selesai, tool aktif, task list) yang d
 
 - Mengubah `~/.claude/settings.json` (backup: `settings.json.bak-notchisland`)
 - Event: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SessionEnd`
-- Sudah pernah memasang versi lama? Jalankan ulang `./hooks/install-hooks.sh` untuk menambah event baru
+- Hook dijalankan oleh app NotchIsland sendiri (`NotchIsland --claude-hook`, ±10 ms per tool), tanpa Python atau dependensi lain
+- Kalau app dipindah (misalnya ke folder Aplikasi) atau masih memakai hook versi lama, path hook otomatis diperbarui saat NotchIsland dibuka
 - Berlaku untuk Claude Code di terminal maupun di aplikasi Claude Desktop (tab Code)
-- Saat ini memerlukan `/usr/bin/python3`
 
 ### 2. Hook terminal (zsh)
 
@@ -201,7 +197,8 @@ Antigravity dan widget musik **tidak** memerlukan hook.
 | **Widget** (centang) | Aktifkan/nonaktifkan Claude, Antigravity, Sedang Diputar, Jam & Kontrol, Folder |
 | Bunyi notifikasi agent & limit | Bunyi untuk agent selesai, peringatan limit, dan terminal |
 | Selalu tampilkan usage Claude | Ring % Claude tetap terlihat walau Claude diam (default: mati) |
-| Notifikasi command terminal | Nyalakan/matikan notifikasi terminal |
+| Integrasi › | Pasang/lepas hook **Claude Code** dan **Terminal zsh** (dengan konfirmasi & backup) |
+| Notifikasi command terminal | Nyalakan/matikan notifikasi terminal (hook tetap terpasang) |
 | Buka saat login | Jalankan NotchIsland otomatis setelah login / restart |
 | Live activity musik › | *Sekilas saat mulai / berganti* (default), *Selama diputar*, *Mati* |
 | Tes notifikasi charger / limit / terminal | Lihat contoh tampilan tanpa menunggu kejadian aslinya |
@@ -239,7 +236,7 @@ NotchIsland **tidak mengirim data ke server mana pun** dan tidak menyimpan promp
 
 | Masalah | Solusi |
 |---|---|
-| Status Claude tidak muncul | Pastikan hook terpasang: `grep claude-island-hook ~/.claude/settings.json`. Mulai prompt baru setelah memasang. |
+| Status Claude tidak muncul | Pastikan menu › Integrasi › Claude Code tercentang (atau `grep -- --claude-hook ~/.claude/settings.json`). Mulai prompt baru setelah memasang. |
 | Persen limit Claude kosong | Buka Claude Desktop sekali (cache-nya perlu ada). |
 | Kuota Antigravity "tertutup" | Buka Antigravity IDE. |
 | Notif terminal tidak muncul | Buka tab terminal baru, lalu cek `whence -w _notch_precmd` (harus `function`). Uji dengan `sleep 31`. |

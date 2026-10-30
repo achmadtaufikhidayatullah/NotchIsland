@@ -50,6 +50,7 @@ clang -dynamiclib -fobjc-arc -O2 -arch arm64 -mmacosx-version-min=14.0 \
   -framework Foundation -framework AppKit \
   NowPlayingBridge/NowPlayingBridge.m -o "$APP/Contents/Resources/NowPlayingBridge.dylib"
 cp NowPlayingBridge/nowplaying.pl "$APP/Contents/Resources/nowplaying.pl"
+cp hooks/notch-terminal.zsh "$APP/Contents/Resources/notch-terminal.zsh"
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # dibuat oleh assets/make-icon.swift
 codesign --force --sign - "$APP/Contents/Resources/NowPlayingBridge.dylib"
 
